@@ -194,7 +194,13 @@ public class KThread {
 
 	currentThread.status = statusFinished;
 	
+	if(currentThread.joinThread!=null){
+		Lib.debug(dbgThread, "ready thread: " + currentThread.joinThread.toString());
+		currentThread.joinThread.ready();
+	}
+	
 	sleep();
+	
     }
 
     /**
@@ -276,7 +282,16 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 	Lib.assertTrue(this != currentThread);
-
+	
+	boolean intStatus = Machine.interrupt().disable();
+	
+	if(status==statusFinished){
+		Lib.debug(dbgThread, "finished thread, return");
+		return;
+	}
+	joinThread=currentThread;
+	sleep();
+	Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -380,7 +395,25 @@ public class KThread {
 	Lib.assertTrue(Machine.interrupt().disabled());
 	Lib.assertTrue(this == currentThread);
     }
+    private static class JoinTest implements Runnable {
+	JoinTest(KThread thread) {
+	    this.thread=thread;
+	}
+	
+	public void run() {
+		
+		if(thread==null){
+			System.out.println("running target");
+			return;
+		}else{
+			System.out.println("running join");
+			thread.join();
+			System.out.println("end join");
+		}
+	}
 
+	private KThread thread;
+    }
     private static class PingTest implements Runnable {
 	PingTest(int which) {
 	    this.which = which;
@@ -403,8 +436,15 @@ public class KThread {
     public static void selfTest() {
 	Lib.debug(dbgThread, "Enter KThread.selfTest");
 	
-	new KThread(new PingTest(1)).setName("forked thread").fork();
-	new PingTest(0).run();
+	//new KThread(new PingTest(1)).setName("forked thread").fork();
+	///new PingTest(0).run();
+	
+	KThread target=new KThread(new JoinTest(null)).setName("target");
+    KThread joiner=new KThread(new JoinTest(target)).setName("join");
+    joiner.fork();
+    target.fork();
+    yield();
+    yield();
     }
 
     private static final char dbgThread = 't';
@@ -439,7 +479,7 @@ public class KThread {
     private int id = numCreated++;
     /** Number of times the KThread constructor was called. */
     private static int numCreated = 0;
-
+	private KThread joinThread=null;
     private static ThreadQueue readyQueue = null;
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
