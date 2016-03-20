@@ -1,7 +1,8 @@
 package nachos.threads;
 
 import nachos.machine.*;
-
+import java.util.Queue;
+import java.util.LinkedList;
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
  * messages. Multiple threads can be waiting to <i>speak</i>,
@@ -14,6 +15,8 @@ public class Communicator {
      * Allocate a new communicator.
      */
     public Communicator() {
+        this.messages=new LinkedList<Integer>();
+        this.lock=new Lock();
     }
 
     /**
@@ -27,6 +30,12 @@ public class Communicator {
      * @param	word	the integer to transfer.
      */
     public void speak(int word) {
+        lock.acquire();
+        messages.add(word);
+        listenCanSee.wake();
+        speakCanQuit.sleep();
+        listenCanQuit.wake();
+        lock.release();
     }
 
     /**
@@ -36,6 +45,19 @@ public class Communicator {
      * @return	the integer transferred.
      */    
     public int listen() {
-	return 0;
+        lock.acquire();
+        listenCanSee.sleep();
+        assert(messages.size()>0);
+        int message=messages.poll();
+        speakCanQuit.wake();
+        listenCanQuit.sleep();
+        lock.release();
+        return message;
     }
+    
+    Queue<Integer> messages;
+    Lock lock;
+    Condition speakCanQuit;
+    Condition listenCanSee;
+    Condition listenCanQuit;
 }
