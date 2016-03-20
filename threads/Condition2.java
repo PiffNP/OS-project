@@ -1,7 +1,8 @@
 package nachos.threads;
 
 import nachos.machine.*;
-
+import java.util.LinkedList;
+import java.util.Queue;
 /**
  * An implementation of condition variables that disables interrupt()s for
  * synchronization.
@@ -21,7 +22,8 @@ public class Condition2 {
      *				<tt>wake()</tt>, or <tt>wakeAll()</tt>.
      */
     public Condition2(Lock conditionLock) {
-	this.conditionLock = conditionLock;
+    	this.conditionLock = conditionLock;
+    	this.sleepingThreads=new LinkedList<KThread>();
     }
 
     /**
@@ -31,11 +33,14 @@ public class Condition2 {
      * automatically reacquire the lock before <tt>sleep()</tt> returns.
      */
     public void sleep() {
-	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-
-	conditionLock.release();
-
-	conditionLock.acquire();
+    	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    
+        boolean intStatus = Machine.interrupt().disable();
+        conditionLock.release();
+        sleepingThreads.add(KThread.currentThread());
+    	sleep();
+    	Machine.interrupt().restore(intStatus);
+    	conditionLock.acquire();
     }
 
     /**
@@ -43,7 +48,10 @@ public class Condition2 {
      * current thread must hold the associated lock.
      */
     public void wake() {
-	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    	if(sleepingThreads.size()>0){
+    	    sleepingThreads.poll().ready();
+    	}
     }
 
     /**
@@ -51,8 +59,11 @@ public class Condition2 {
      * thread must hold the associated lock.
      */
     public void wakeAll() {
-	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+	    Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    	while(sleepingThreads.size()>0){
+    	    sleepingThreads.poll().ready();
+    	}
     }
-
+    private Queue<KThread> sleepingThreads;
     private Lock conditionLock;
 }
