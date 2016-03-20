@@ -1,7 +1,9 @@
 package nachos.threads;
 
 import nachos.machine.*;
-
+import java.util.Queue;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
@@ -18,6 +20,21 @@ public class Alarm {
 	Machine.timer().setInterruptHandler(new Runnable() {
 		public void run() { timerInterrupt(); }
 	    });
+	    
+	    Comparator<KThreadWithTime> order =  new Comparator<KThreadWithTime>(){  
+            public int compare(KThreadWithTime thread1, KThreadWithTime thread2) {  
+                if(thread1.wakeTime<thread2.wakeTime){
+                    return -1;
+                }
+                else if(thread1.wakeTime==thread2.wakeTime){
+                    return 0;
+                } 
+                else{
+                    return 1;
+                }
+            } 
+        };
+	    queue=new PriorityQueue<KThreadWithTime>(11,order);
     }
 
     /**
@@ -27,8 +44,14 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-	KThread.currentThread().yield();
+	    KThread.currentThread().yield();
+	    long currentTime=Machine.timer().getTime();
+	    while(queue.size()>0 && queue.peek().wakeTime>=currentTime){
+	        queue.poll().thread.ready();
+	    }
     }
+
+
 
     /**
      * Put the current thread to sleep for at least <i>x</i> ticks,
@@ -46,8 +69,20 @@ public class Alarm {
      */
     public void waitUntil(long x) {
 	// for now, cheat just to get something working (busy waiting is bad)
-	long wakeTime = Machine.timer().getTime() + x;
-	while (wakeTime > Machine.timer().getTime())
-	    KThread.yield();
+	    long wakeTime = Machine.timer().getTime() + x;
+        queue.add(new KThreadWithTime(KThread.currentThread(),wakeTime));
+        boolean intStatus = Machine.interrupt().disable();
+        KThread.sleep();
+        Machine.interrupt().restore(intStatus);
     }
-}
+    
+    private class KThreadWithTime{
+        KThreadWithTime(KThread thread,long wakeTime){
+            this.thread=thread;
+            this.wakeTime=wakeTime;
+        }
+        public KThread thread;
+        public long wakeTime;
+    }
+    private Queue<KThreadWithTime> queue;
+};
