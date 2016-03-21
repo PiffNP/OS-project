@@ -36,11 +36,13 @@ public class Condition2 {
     	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
     
         boolean intStatus = Machine.interrupt().disable();
+        /** critical section begins*/
         conditionLock.release();
         sleepingThreads.add(KThread.currentThread());
     	sleep();
-    	Machine.interrupt().restore(intStatus);
     	conditionLock.acquire();
+        /** critical section ends*/
+    	Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -49,10 +51,14 @@ public class Condition2 {
      */
     public void wake() {
     	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-    	/** No need to disable interupt here since only one thread can take the lock*/
+    	
+        boolean intStatus = Machine.interrupt().disable();
+        /** critical section begins*/
     	if(sleepingThreads.size() > 0){
     	    sleepingThreads.poll().ready();
     	}
+    	/** critical section ends*/
+    	Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -61,10 +67,14 @@ public class Condition2 {
      */
     public void wakeAll() {
 	    Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-    	/** No need to disable interupt here since only one thread can take the lock*/
+	    
+	    boolean intStatus = Machine.interrupt().disable();
+        /** critical section begins*/
     	while(sleepingThreads.size() > 0){
     	    sleepingThreads.poll().ready();
     	}
+    	/** critical section ends*/
+    	Machine.interrupt().restore(intStatus);
     }
     private Queue<KThread> sleepingThreads;
     private Lock conditionLock;
