@@ -49,7 +49,8 @@ public class Condition2 {
      */
     public void wake() {
     	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-    	if(sleepingThreads.size()>0){
+    	/** No need to disable interupt here since only one thread can take the lock*/
+    	if(sleepingThreads.size() > 0){
     	    sleepingThreads.poll().ready();
     	}
     }
@@ -60,7 +61,8 @@ public class Condition2 {
      */
     public void wakeAll() {
 	    Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-    	while(sleepingThreads.size()>0){
+    	/** No need to disable interupt here since only one thread can take the lock*/
+    	while(sleepingThreads.size() > 0){
     	    sleepingThreads.poll().ready();
     	}
     }
