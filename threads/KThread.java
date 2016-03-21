@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import nachos.threads.*;
 
 /**
  * A KThread is a thread that can be used to execute Nachos kernel code. Nachos
@@ -182,25 +183,23 @@ public class KThread {
      * delete this thread.
      */
     public static void finish() {
-	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
+    	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
 	
-	Machine.interrupt().disable();
+    	Machine.interrupt().disable();
 
-	Machine.autoGrader().finishingCurrentThread();
+    	Machine.autoGrader().finishingCurrentThread();
 
-	Lib.assertTrue(toBeDestroyed == null);
-	toBeDestroyed = currentThread;
-
-
-	currentThread.status = statusFinished;
+    	Lib.assertTrue(toBeDestroyed == null);
+    	toBeDestroyed = currentThread;
+    	
+    	currentThread.status = statusFinished;
 	
-	if(currentThread.joinThread!=null){
-		Lib.debug(dbgThread, "ready thread: " + currentThread.joinThread.toString());
-		currentThread.joinThread.ready();
-	}
-	
-	sleep();
-	
+    	if(currentThread.joinThread != null){
+    		Lib.debug(dbgThread, "ready thread: " + currentThread.joinThread.toString());
+    		currentThread.joinThread.ready();
+    	}
+    	
+    	sleep();
     }
 
     /**
@@ -279,19 +278,21 @@ public class KThread {
      * thread.
      */
     public void join() {
-	Lib.debug(dbgThread, "Joining to thread: " + toString());
-
-	Lib.assertTrue(this != currentThread);
-	
-	boolean intStatus = Machine.interrupt().disable();
-	
-	if(status==statusFinished){
-		Lib.debug(dbgThread, "finished thread, return");
-		return;
-	}
-	joinThread=currentThread;
-	sleep();
-	Machine.interrupt().restore(intStatus);
+    	Lib.debug(dbgThread, "Joining to thread: " + toString());
+    	Lib.assertTrue(this != currentThread);
+    	/** Calling this method a second time is undefined*/
+    	Lib.assertTrue(joinThread == null);
+    	
+    	boolean intStatus = Machine.interrupt().disable();
+    	/** critical section begins*/
+    	if(status == statusFinished){
+    		Lib.debug(dbgThread, "finished thread, return");
+    	} else {
+    		joinThread = currentThread;
+    		sleep();
+    	}
+    	/** critical section ends*/
+    	Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -395,25 +396,6 @@ public class KThread {
 	Lib.assertTrue(Machine.interrupt().disabled());
 	Lib.assertTrue(this == currentThread);
     }
-    private static class JoinTest implements Runnable {
-	JoinTest(KThread thread) {
-	    this.thread=thread;
-	}
-	
-	public void run() {
-		
-		if(thread==null){
-			System.out.println("running target");
-			return;
-		}else{
-			System.out.println("running join");
-			thread.join();
-			System.out.println("end join");
-		}
-	}
-
-	private KThread thread;
-    }
     private static class PingTest implements Runnable {
 	PingTest(int which) {
 	    this.which = which;
@@ -434,19 +416,13 @@ public class KThread {
      * Tests whether this module is working.
      */
     public static void selfTest() {
-	Lib.debug(dbgThread, "Enter KThread.selfTest");
+    	Lib.debug(dbgThread, "Enter KThread.selfTest");
 	
-	//new KThread(new PingTest(1)).setName("forked thread").fork();
-	///new PingTest(0).run();
-	
-	KThread target=new KThread(new JoinTest(null)).setName("target");
-    KThread joiner=new KThread(new JoinTest(target)).setName("join");
-    joiner.fork();
-    target.fork();
-    yield();
-    yield();
+    	new KThread(new PingTest(1)).setName("forked thread").fork();
+    	new PingTest(0).run();
     }
-
+    
+    
     private static final char dbgThread = 't';
 
     /**
@@ -479,7 +455,8 @@ public class KThread {
     private int id = numCreated++;
     /** Number of times the KThread constructor was called. */
     private static int numCreated = 0;
-	private KThread joinThread=null;
+    /** If not null, wake joinThread when finished*/
+	private KThread joinThread = null;
     private static ThreadQueue readyQueue = null;
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
