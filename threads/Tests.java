@@ -31,9 +31,13 @@ public class Tests{
 		    KThread.yield();
 		    KThread.yield();
 		}
+		if(testType==BoatTest){
+		    Boat.selfTest();
+		}
 	}
 	
 	/** tests type */
 	public static final int KThreadJoinTest = 0;
+	public static final int BoatTest=5;
 }
 
