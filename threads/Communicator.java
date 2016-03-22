@@ -53,9 +53,9 @@ public class Communicator {
     			activeSpeaker--;
     			activeListener--;
     			if(waitingSpeaker > 0)
-    				waitingSpeaker.wake();
+    				speaker.wake();
     			if(waitingListener > 0)
-    				waitingListener.wake();
+    				listener.wake();
     		} else {
     			channel.wake();
     		}
@@ -104,9 +104,9 @@ public class Communicator {
     			activeSpeaker--;
     			activeListener--;
     			if(waitingSpeaker > 0)
-    				waitingSpeaker.wake();
+    				speaker.wake();
     			if(waitingListener > 0)
-    				waitingListener.wake();
+    				listener.wake();
     		} else {
         		word = this.message;
     			channel.wake();
