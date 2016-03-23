@@ -144,15 +144,16 @@ public class PriorityScheduler extends Scheduler {
 	                    	else{
 		                    	//perhaps a bug with *this*, use *me* instead
 	                    		Long xEnterQueueTime = threadX.waitingQueue.get(me);
-		                    	Long yEnterQueueTime = threadX.waitingQueue.get(me);
+		                    	Long yEnterQueueTime = threadY.waitingQueue.get(me);
 		                    	//waitingQueue should contains *this* so both time should not be null!
 		                    	if(xEnterQueueTime < yEnterQueueTime)
 		                    		return 1;
 		                    	else if(xEnterQueueTime > yEnterQueueTime)
 		                    		return -1;
 		                    	//WARNING: system clock may be the same!
-		                    	else
+		                    	else{
 		                    		return Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
+		                    	}
 	                    	}
 	                    }
 	                });

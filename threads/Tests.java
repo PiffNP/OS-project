@@ -13,15 +13,18 @@ public class Tests{
 				public void run() {
 					if(thread == null){
 						orderCheck(2, "running target");
-						//System.out.println("hhh");
 						return;
 					}else{
-						//System.out.println("lol");
 						orderCheck(1, "running join");
-						thread.join();
-						//System.out.println("XD");
-						orderCheck(3, "end join");
-					    unitTestEnd();
+						try{
+							thread.join();
+							orderCheck(3, "end join");
+						} catch (Error e){
+							System.out.println("Error caught.");
+							flag = false;
+						} finally{
+							unitTestEnd();
+						}
 					}
 				}
 				
@@ -32,8 +35,8 @@ public class Tests{
 			KThread target = new KThread(new JoinTest(null)).setName("target");
 		    KThread joiner = new KThread(new JoinTest(target)).setName("joiner");
 		    joiner.fork();
-		    target.fork();
-		    unitTestStart();
+			target.fork();
+			unitTestStart();
 		    unitTestCheck(true);
 		    
 		    unitTestInit(2, "self joining");
@@ -43,20 +46,26 @@ public class Tests{
 							try{
 								selfJoin.join();
 							} catch (Error e){
-								throw e;
+								System.out.println("Error caught.");
+								flag = false;
 							} finally{
 								unitTestEnd();
 							}
 						}
 			});
-			try{
-				joiner.fork();
-				unitTestStart();
-			} catch (Error e){
-				System.out.println("Error caught.");
-				flag = false;
-			}
-			unitTestCheck(false);		    
+			selfJoin.fork();
+			unitTestStart();
+			unitTestCheck(false);
+			
+		    unitTestInit(3, "call joining twice");
+		    target = new KThread(new JoinTest(null)).setName("target");
+		    joiner = new KThread(new JoinTest(target)).setName("joiner1");
+		    KThread joiner2 = new KThread(new JoinTest(target)).setName("joiner2");
+			joiner.fork();
+			joiner2.fork();
+			target.fork();
+			unitTestStart();
+			unitTestCheck(false);
 		} else if(testType == PriorutySchedulerTest){
 
 		} else if(testType == BoatTest){
@@ -93,7 +102,7 @@ public class Tests{
 	}
 	private static void orderCheck(int order, String message){
 		orderCheck(order);
-		System.out.println(message);
+		Lib.debug(dbgThread, message);
 	}
 	
 	private static void unitTestCheck(boolean flagObjState){
