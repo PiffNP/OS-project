@@ -59,6 +59,8 @@ public class Tests{
 			unitTestCheck(false);		    
 		} else if(testType == PriorutySchedulerTest){
 
+		} else if(testType == BoatTest){
+		    Boat.selfTest();
 		}
 	}
 	
@@ -109,5 +111,6 @@ public class Tests{
 	/** tests type */
 	public static final int KThreadJoinTest = 0;
 	public static final int PriorutySchedulerTest = KThreadJoinTest + 1;
+	public static final int BoatTest = PriorutySchedulerTest + 1;
 }
 
