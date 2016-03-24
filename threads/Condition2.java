@@ -37,9 +37,9 @@ public class Condition2 {
     
         boolean intStatus = Machine.interrupt().disable();
         /** critical section begins*/
-        conditionLock.release();
         sleepingThreads.add(KThread.currentThread());
-    	sleep();
+        conditionLock.release();
+    	KThread.sleep();
     	conditionLock.acquire();
         /** critical section ends*/
     	Machine.interrupt().restore(intStatus);
