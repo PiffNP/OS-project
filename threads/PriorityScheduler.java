@@ -274,7 +274,7 @@ public class PriorityScheduler extends Scheduler {
 					if (priorityQueue.transferPriority && priorityQueue.holderThread != null)
 						//not sure whether it is right
 						if(oldEffectivePriority == getThreadState(priorityQueue.holderThread).getEffectivePriority()
-							|| effectivePriority < getThreadState(priorityQueue.holderThread).getEffectivePriority())
+							|| effectivePriority > getThreadState(priorityQueue.holderThread).getEffectivePriority())
 							getThreadState(priorityQueue.holderThread).updateEffectivePriority();	
 			// finish implementation
 		}
