@@ -69,32 +69,33 @@ public class PriorityScheduler extends Scheduler {
 
 	public boolean increasePriority() {
 		boolean intStatus = Machine.interrupt().disable();
-
+		boolean flag = true;
 		KThread thread = KThread.currentThread();
 
 		int priority = getPriority(thread);
 		if (priority == priorityMaximum)
-			return false;
-
-		setPriority(thread, priority + 1);
+			flag = false;
+		else
+			setPriority(thread, priority + 1);
 
 		Machine.interrupt().restore(intStatus);
-		return true;
+		return flag;
 	}
 
 	public boolean decreasePriority() {
 		boolean intStatus = Machine.interrupt().disable();
+		boolean flag = true;
 
 		KThread thread = KThread.currentThread();
 
 		int priority = getPriority(thread);
 		if (priority == priorityMinimum)
-			return false;
-
-		setPriority(thread, priority - 1);
+			flag = false;
+		else
+			setPriority(thread, priority - 1);
 
 		Machine.interrupt().restore(intStatus);
-		return true;
+		return false;
 	}
 
 	/**
