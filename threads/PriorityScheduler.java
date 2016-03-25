@@ -153,8 +153,8 @@ public class PriorityScheduler extends Scheduler {
 		                    		return -1;
 		                    	//WARNING: system clock may be the same!
 		                    	else{
-						//return 0;
-		                    		return -Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
+		                    		//return 0;
+		                    		return Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
 		                    	}
 	                    	}
 	                    }
@@ -235,7 +235,7 @@ public class PriorityScheduler extends Scheduler {
 			this.thread = thread;
 			this.waitingQueue = new HashMap<PriorityQueue, Long>();
 			this.holdingQueue = new HashSet<PriorityQueue>();
-			this.effectivePriority = this.priority;
+			this.effectivePriority = priorityDefault;
 			setPriority(priorityDefault);
 		}
 
@@ -376,4 +376,7 @@ public class PriorityScheduler extends Scheduler {
 		protected HashSet<PriorityQueue> holdingQueue;
 	}
 	
+	public static void selfTest(){
+	
+	}
 }

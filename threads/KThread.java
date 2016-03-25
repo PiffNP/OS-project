@@ -44,20 +44,20 @@ public class KThread {
      * create an idle thread as well.
      */
     public KThread() {
-	if (currentThread != null) {
-	    tcb = new TCB();
-	}	    
-	else {
-	    readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
-	    readyQueue.acquire(this);	    
-
-	    currentThread = this;
-	    tcb = TCB.currentTCB();
-	    name = "main";
-	    restoreState();
-
-	    createIdleThread();
-	}
+    	if (currentThread != null) {
+    		tcb = new TCB();
+    	}	    
+    	else {
+    		readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+    		readyQueue.acquire(this);	    
+    		
+    		currentThread = this;
+    		tcb = TCB.currentTCB();
+    		name = "main";
+    		restoreState();
+    		
+    		createIdleThread();
+    	}
     }
 
     /**
@@ -157,9 +157,9 @@ public class KThread {
     }
 
     private void runThread() {
-	begin();
-	target.run();
-	finish();
+    	begin();
+    	target.run();
+    	finish();
     }
 
     private void begin() {
@@ -184,7 +184,7 @@ public class KThread {
      */
     public static void finish() {
     	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
-	
+    	
     	Machine.interrupt().disable();
 
     	Machine.autoGrader().finishingCurrentThread();
@@ -196,6 +196,7 @@ public class KThread {
 	
     	if(currentThread.joinThread != null){
     		Lib.debug(dbgThread, "ready thread: " + currentThread.joinThread.toString());
+    		currentThread.joinQueue.acquire(currentThread.joinThread);
     		currentThread.joinThread.ready();
     	}
     	
@@ -288,6 +289,8 @@ public class KThread {
     	if(status == statusFinished){
     		Lib.debug(dbgThread, "finished thread, return");
     	} else {
+    		this.joinQueue.acquire(this);
+    		this.joinQueue.waitForAccess(currentThread);
     		joinThread = currentThread;
     		sleep();
     	}
@@ -457,6 +460,7 @@ public class KThread {
     private static int numCreated = 0;
     /** If not null, wake joinThread when finished*/
 	private KThread joinThread = null;
+    private ThreadQueue joinQueue = ThreadedKernel.scheduler.newThreadQueue(true);
     private static ThreadQueue readyQueue = null;
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;

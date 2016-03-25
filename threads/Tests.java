@@ -66,8 +66,8 @@ public class Tests{
 			target.fork();
 			unitTestStart();
 			unitTestCheck(false);
-		} else if(testType == PriorutySchedulerTest){
-
+		} else if(testType == PrioritySchedulerTest){
+			PriorityScheduler.selfTest();
 		} else if(testType == BoatTest){
 		    Boat.selfTest();
 		}
@@ -119,7 +119,7 @@ public class Tests{
 	
 	/** tests type */
 	public static final int KThreadJoinTest = 0;
-	public static final int PriorutySchedulerTest = KThreadJoinTest + 1;
-	public static final int BoatTest = PriorutySchedulerTest + 1;
+	public static final int PrioritySchedulerTest = KThreadJoinTest + 1;
+	public static final int BoatTest = PrioritySchedulerTest + 1;
 }
 
