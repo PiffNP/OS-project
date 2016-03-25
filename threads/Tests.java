@@ -66,8 +66,6 @@ public class Tests{
 			target.fork();
 			unitTestStart();
 			unitTestCheck(false);
-			
-			KThread.yield();
 		} else if(testType == PrioritySchedulerTest){
 			class JoinDonationTest implements Runnable {
 				JoinDonationTest(int id, KThread thread) {
@@ -151,6 +149,7 @@ public class Tests{
 	
 	private static void unitTestCheck(boolean flagObjState){
 		System.out.println("Test #" + testCounter + ' ' + (flag == flagObjState? "passed" : "failed") + ".\n");
+		KThread.yield();
 	}
 
 	private static int testCounter = 0;
