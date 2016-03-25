@@ -1,9 +1,10 @@
 package nachos.threads;
 
 import nachos.machine.*;
-import java.util.Queue;
-import java.util.Comparator;
-import java.util.PriorityQueue;
+//import java.util.Queue;
+//import java.util.Comparator;
+//import java.util.PriorityQueue;
+import java.util.TreeMap;
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
@@ -17,10 +18,10 @@ public class Alarm {
      * alarm.
      */
     public Alarm() {
-	Machine.timer().setInterruptHandler(new Runnable() {
-		public void run() { timerInterrupt(); }
-	    });
-	    
+    	Machine.timer().setInterruptHandler(new Runnable() {
+    		public void run() { timerInterrupt(); }
+	    	});
+	    /*
 	    Comparator<KThreadWithTime> order =  new Comparator<KThreadWithTime>(){  
             public int compare(KThreadWithTime thread1, KThreadWithTime thread2) {  
                 if(thread1.wakeTime<thread2.wakeTime){
@@ -35,6 +36,8 @@ public class Alarm {
             } 
         };
 	    queue=new PriorityQueue<KThreadWithTime>(11,order);
+	    //*/
+		queue = new TreeMap<Long, KThread>();
     }
 
     /**
@@ -44,14 +47,21 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-	    KThread.currentThread().yield();
-	    long currentTime=Machine.timer().getTime();
+    	boolean intStatus = Machine.interrupt().disable();
+	    //* critical section begins */
+	    long currentTime = Machine.timer().getTime();
+	    while(queue.size() > 0 && queue.firstKey() <= currentTime)
+	    	queue.pollFirstEntry().getValue().ready();
+	    /*
 	    while(queue.size()>0 && queue.peek().wakeTime>=currentTime){
 	        queue.poll().thread.ready();
 	    }
+	    //*/
+	    //* critical section ends */
+	    Machine.interrupt().restore(intStatus);
+	    
+	    KThread.currentThread().yield();
     }
-
-
 
     /**
      * Put the current thread to sleep for at least <i>x</i> ticks,
@@ -68,14 +78,16 @@ public class Alarm {
      * @see	nachos.machine.Timer#getTime()
      */
     public void waitUntil(long x) {
-	// for now, cheat just to get something working (busy waiting is bad)
+	    boolean intStatus = Machine.interrupt().disable();
+	    //* critical section begins */
 	    long wakeTime = Machine.timer().getTime() + x;
-        queue.add(new KThreadWithTime(KThread.currentThread(),wakeTime));
-        boolean intStatus = Machine.interrupt().disable();
+	    queue.put(wakeTime, KThread.currentThread());
         KThread.sleep();
+	    //* critical section ends */
         Machine.interrupt().restore(intStatus);
     }
     
+    /*
     private class KThreadWithTime{
         KThreadWithTime(KThread thread,long wakeTime){
             this.thread=thread;
@@ -85,4 +97,6 @@ public class Alarm {
         public long wakeTime;
     }
     private Queue<KThreadWithTime> queue;
+    //*/
+    private TreeMap<Long, KThread> queue;
 };
