@@ -153,7 +153,8 @@ public class PriorityScheduler extends Scheduler {
 		                    		return -1;
 		                    	//WARNING: system clock may be the same!
 		                    	else{
-		                    		return Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
+						return 0;
+		                    		//return Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
 		                    	}
 	                    	}
 	                    }
@@ -212,7 +213,7 @@ public class PriorityScheduler extends Scheduler {
 		/** The priority waiting queue. */
 		private TreeMap<ThreadState, KThread> queue;
 		/** Used to replace this in comparator*/
-		PriorityQueue me;
+		private PriorityQueue me;
 	}
 
 	/**
@@ -234,8 +235,8 @@ public class PriorityScheduler extends Scheduler {
 			this.thread = thread;
 			this.waitingQueue = new HashMap<PriorityQueue, Long>();
 			this.holdingQueue = new HashSet<PriorityQueue>();
-			setPriority(priorityDefault);
 			this.effectivePriority = this.priority;
+			setPriority(priorityDefault);
 		}
 
 		/**
