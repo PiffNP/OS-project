@@ -154,7 +154,7 @@ public class PriorityScheduler extends Scheduler {
 		                    	//WARNING: system clock may be the same!
 		                    	else{
 						//return 0;
-		                    		return Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
+		                    		return -Integer.signum(threadX.thread.toString().compareTo(threadY.thread.toString()));
 		                    	}
 	                    	}
 	                    }
