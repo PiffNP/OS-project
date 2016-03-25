@@ -31,7 +31,7 @@ public class Tests{
 				private KThread thread;
 			}
 			
-		    unitTestInit(1, "basic two threads joining");
+		    unitTestInit("basic two threads joining");
 			KThread target = new KThread(new JoinTest(null)).setName("target");
 		    KThread joiner = new KThread(new JoinTest(target)).setName("joiner");
 		    joiner.fork();
@@ -39,7 +39,7 @@ public class Tests{
 			unitTestStart();
 		    unitTestCheck(true);
 		    
-		    unitTestInit(2, "self joining");
+		    unitTestInit("self joining");
 			final KThread selfJoin = new KThread().setName("selfJoin");
 			selfJoin.setTarget(new Runnable() {
 						public void run() {
@@ -57,7 +57,7 @@ public class Tests{
 			unitTestStart();
 			unitTestCheck(false);
 			
-		    unitTestInit(3, "call joining twice");
+		    unitTestInit("call joining twice");
 		    target = new KThread(new JoinTest(null)).setName("target");
 		    joiner = new KThread(new JoinTest(target)).setName("joiner1");
 		    KThread joiner2 = new KThread(new JoinTest(target)).setName("joiner2");
@@ -66,20 +66,64 @@ public class Tests{
 			target.fork();
 			unitTestStart();
 			unitTestCheck(false);
+			
+			KThread.yield();
 		} else if(testType == PrioritySchedulerTest){
+			class JoinDonationTest implements Runnable {
+				JoinDonationTest(int id, KThread thread) {
+					this.id = id;
+					this.thread = thread;
+				}
+
+				public void run() {
+					if(thread == null){
+						Lib.debug(dbgThread, id + " runs");
+						if(id == 2)
+							unitTestEnd();
+						return;
+					}else{
+						Lib.debug(dbgThread, id + " starts joining");
+						try{
+							thread.join();
+							Lib.debug(dbgThread, id + " ends joining");
+						} catch (Error e){
+							System.out.println("Error caught.");
+							flag = false;
+						} finally{
+							
+						}
+					}
+				}
+				private int id;
+				private KThread thread;
+			}
+			
+		    unitTestInit("priority donation when joining");
+			KThread kt1 = new KThread(new JoinDonationTest(1, null)).setName("1");
+			KThread kt2 = new KThread(new JoinDonationTest(2, null)).setName("2");
+		    KThread kt3 = new KThread(new JoinDonationTest(3, kt1)).setName("3");
+		    kt1.fork();
+		    kt2.fork();
+		    kt3.fork();
+		    boolean intStatus = Machine.interrupt().disable();
+		    ThreadedKernel.scheduler.setPriority(kt1, 2);
+		    ThreadedKernel.scheduler.setPriority(kt2, 3);
+		    ThreadedKernel.scheduler.setPriority(kt3, 4);
+		    Machine.interrupt().restore(intStatus);
+			unitTestStart();
+		    unitTestCheck(true);
 			PriorityScheduler.selfTest();
 		} else if(testType == BoatTest){
 		    Boat.selfTest();
 		}
 	}
 	
-	private static void unitTestInit(int id, String description){
-		System.out.println("\nTest #" + id + ": " + description);
+	private static void unitTestInit(String description){
+		System.out.println("\nTest #" + (++testCounter) + ": " + description);
 		lock = new Lock();
 		condition = new Condition(lock);
 		flag = true;
-		counter = 0;
-		Tests.id = id;
+		orderCounter = 0;
 	}
 	
 	private static void unitTestStart(){
@@ -96,9 +140,9 @@ public class Tests{
 	
 	/** order index starts with 1*/
 	private static void orderCheck(int order){
-		if(++counter != order)
+		if(++orderCounter != order)
 			flag = false;
-		//System.out.println(counter + " " + order);
+		//System.out.println(orderCounter + " " + order);
 	}
 	private static void orderCheck(int order, String message){
 		orderCheck(order);
@@ -106,14 +150,15 @@ public class Tests{
 	}
 	
 	private static void unitTestCheck(boolean flagObjState){
-		System.out.println("Test #" + id + ' ' + (flag == flagObjState? "passed" : "failed") + ".\n");
+		System.out.println("Test #" + testCounter + ' ' + (flag == flagObjState? "passed" : "failed") + ".\n");
 	}
 
-	private static int id;
+	private static int testCounter = 0;
 	private static Lock lock;
 	private static Condition condition;
 	private static boolean flag;
-	private static int counter;
+	private static int orderCounter;
+
 	
 	private static final char dbgThread = 'z';
 	

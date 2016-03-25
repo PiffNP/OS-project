@@ -170,7 +170,7 @@ public class PriorityScheduler extends Scheduler {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			getThreadState(thread).acquire(this);
 		}
-
+		
 		public KThread nextThread() {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			// implement me
@@ -210,7 +210,7 @@ public class PriorityScheduler extends Scheduler {
 		public boolean transferPriority;
 		/** The thread holds the lock of this priority queue. */
 		private KThread holderThread;
-		/** The priority waiting queue. */
+		/** The priority waiting queue. !!!!!!!*/
 		private TreeMap<ThreadState, KThread> queue;
 		/** Used to replace this in comparator*/
 		private final PriorityQueue me;
@@ -261,6 +261,9 @@ public class PriorityScheduler extends Scheduler {
 		
 		protected void updateEffectivePriority() {
 			// implement me
+			for (PriorityQueue priorityQueue : waitingQueue.keySet())
+				priorityQueue.queue.remove(this);
+			
 			int oldEffectivePriority = this.effectivePriority;
 			this.effectivePriority = this.priority;
 			
@@ -270,6 +273,9 @@ public class PriorityScheduler extends Scheduler {
 					if (effectivePriority < donationPriority)
 						effectivePriority = donationPriority;
 				}
+			
+			for (PriorityQueue priorityQueue : waitingQueue.keySet())
+				priorityQueue.queue.put(this, thread);
 			
 			if (oldEffectivePriority != effectivePriority)
 				for (PriorityQueue priorityQueue: waitingQueue.keySet())
