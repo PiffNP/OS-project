@@ -31,6 +31,7 @@ public class Tests{
 				private KThread thread;
 			}
 			{
+				/** basic function test*/
 				unitTestInit("basic two threads joining");
 				KThread target = new KThread(new JoinTest(null)).setName("target");
 				KThread joiner = new KThread(new JoinTest(target)).setName("joiner");
@@ -40,21 +41,22 @@ public class Tests{
 				unitTestCheck(true);
 			}
 			
-		    unitTestInit("self joining");
-			final KThread selfJoin = new KThread().setName("selfJoin");
-			selfJoin.setTarget(new Runnable() {
-						public void run() {
-							try{
-								selfJoin.join();
-							} catch (Error e){
-								System.out.println("Error caught.");
-								flag = false;
-							} finally{
-								unitTestEnd();
-							}
-						}
-			});
 			{
+				/** test if a thread can join itself*/
+				unitTestInit("self joining");
+				final KThread selfJoin = new KThread().setName("selfJoin");
+				selfJoin.setTarget(new Runnable() {
+					public void run() {
+						try{
+							selfJoin.join();
+						} catch (Error e){
+							System.out.println("Error caught.");
+							flag = false;
+						} finally{
+							unitTestEnd();
+						}
+					}
+				});
 				selfJoin.fork();
 				unitTestStart();
 				unitTestCheck(false);
@@ -86,6 +88,7 @@ public class Tests{
 				private KThread thread;
 			}
 			{
+				/** test if a thread can be joined twice*/
 				unitTestInit("call joining twice");
 				KThread target = new KThread(new JoinTest2(null)).setName("target");
 				KThread joiner = new KThread(new JoinTest2(target)).setName("joiner1");
@@ -123,6 +126,7 @@ public class Tests{
 				private KThread thread;
 			}
 			{
+				/** test if it works well when a finished thread being joined*/
 				unitTestInit("join a finished thread");
 				KThread target = new KThread(new JoinTest(null)).setName("target");
 				KThread joiner = new KThread(new JoinTest(target)).setName("joiner");
@@ -161,6 +165,7 @@ public class Tests{
 				private KThread thread;
 			}
 			{
+				/** test if priority donation works well when a thread being joined*/
 				unitTestInit("priority donation when joining");
 				KThread kt1 = new KThread(new JoinDonationTest(1, null)).setName("1");
 				KThread kt2 = new KThread(new JoinDonationTest(2, null)).setName("2");
@@ -174,7 +179,7 @@ public class Tests{
 				ThreadedKernel.scheduler.setPriority(kt3, 4);
 				Machine.interrupt().restore(intStatus);
 				unitTestStart();
-				unitTestCheck(true);
+				System.out.println("(Required to be checked manually.)");
 			}
 		} else if(testType == ConditionTest){
 			class ConditionTest implements Runnable {
@@ -465,13 +470,13 @@ public class Tests{
 				unitTestCheck(true);
 			}
 		} else if(testType == BoatTest){
-		    BoatGrader b=new BoatGrader();
-		   	unitTestInit("0 adult, 2 children");
-		    Boat.begin(0,2,b);
-		    unitTestInit("2 adult, 4 children");
-		    Boat.begin(2,4,b);
-		   	unitTestInit("10 adult, 10 children");
-		    Boat.begin(10,10,b);
+		    BoatGrader b = new BoatGrader();
+		   	unitTestInit("BoatTest with 0 adult, 2 children");
+		    Boat.begin(0, 2, b);
+		    unitTestInit("BoatTest with 2 adult, 4 children");
+		    Boat.begin(2, 4, b);
+		   	unitTestInit("BoatTest with10 adult, 10 children");
+		    Boat.begin(10, 10, b);
 		} 	
 	}	
 	

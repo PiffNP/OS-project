@@ -10,6 +10,13 @@ import java.util.LinkedList;
  * be a time when both a speaker and a listener are waiting, because the two
  * threads can be paired off at this point.
  */
+
+/**
+ * We give two kinds of implementation for communicator. In the first implementation, 
+ * speaker and listerner are of dual behaviors. In the second implementation, the speakers
+ * are more active while listener are more passive. In default we use the first implementatiion.
+ * However, you can set the value of variable solutionFlag as false to use the second one.
+ */
 public class Communicator {
     /**
      * Allocate a new communicator.
@@ -125,14 +132,19 @@ public class Communicator {
     	return solutionFlag;
     }
     
+    /** the shared varible for speaker and listener*/
     int message;
     Lock lock;
     int activeSpeaker;
     int waitingSpeaker;
     int activeListener;
     int waitingListener;
+    /** the condition for waiting speaker*/
     Condition speaker;
+    /** the condition for waiting listener*/
     Condition listener;
+    /** the condition for active speaker and active listener*/
     Condition channel;
-    private static boolean solutionFlag = true;
+    /** Flag variable to decide to use solution 1 or 2*/
+    private static boolean solutionFlag = false;
 }

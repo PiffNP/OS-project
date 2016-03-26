@@ -66,7 +66,8 @@ public class PriorityScheduler extends Scheduler {
 
 		getThreadState(thread).setPriority(priority);
 	}
-
+	
+	/** increase the priority of the thread by 1 if possible*/
 	public boolean increasePriority() {
 		boolean intStatus = Machine.interrupt().disable();
 		boolean flag = true;
@@ -82,6 +83,7 @@ public class PriorityScheduler extends Scheduler {
 		return flag;
 	}
 
+	/** decrease the priority of the thread by 1 if possible*/
 	public boolean decreasePriority() {
 		boolean intStatus = Machine.interrupt().disable();
 		boolean flag = true;
@@ -133,6 +135,7 @@ public class PriorityScheduler extends Scheduler {
 			this.transferPriority = transferPriority;
 			this.holderThread = null;
 			this.me = this;
+			/** override a Comparator to implement an FIFO priority queue*/
 			this.queue = new TreeMap<ThreadState, KThread> (
 	                new Comparator<ThreadState>() {
 	                    public int compare(ThreadState threadX, ThreadState threadY) {
@@ -143,10 +146,8 @@ public class PriorityScheduler extends Scheduler {
 	                    	else if(xEfficientPriority < yEfficientPriority)
 	                    		return -1;
 	                    	else{
-		                    	//perhaps a bug with *this*, use *me* instead
 	                    		Long xEnterQueueTime = threadX.waitingQueue.get(me);
 		                    	Long yEnterQueueTime = threadY.waitingQueue.get(me);
-		                    	//waitingQueue should contains *this* so both time should not be null!
 		                    	if(xEnterQueueTime < yEnterQueueTime)
 		                    		return 1;
 		                    	else if(xEnterQueueTime > yEnterQueueTime)
@@ -201,6 +202,7 @@ public class PriorityScheduler extends Scheduler {
 		public void print() {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			// implement me (if you want)
+			// I am lazy XD
 		}
 
 		/**
@@ -210,7 +212,7 @@ public class PriorityScheduler extends Scheduler {
 		public boolean transferPriority;
 		/** The thread holds the lock of this priority queue. */
 		private KThread holderThread;
-		/** The priority waiting queue. !!!!!!!*/
+		/** The priority waiting queue.*/
 		private TreeMap<ThreadState, KThread> queue;
 		/** Used to replace this in comparator*/
 		private final PriorityQueue me;
@@ -261,12 +263,14 @@ public class PriorityScheduler extends Scheduler {
 		
 		protected void updateEffectivePriority() {
 			// implement me
+			/** need to remove it here and add again later to maintain order*/
 			for (PriorityQueue priorityQueue : waitingQueue.keySet())
 				priorityQueue.queue.remove(this);
 			
 			int oldEffectivePriority = this.effectivePriority;
 			this.effectivePriority = this.priority;
-			
+
+			/** calculate the effective priority here*/
 			for (PriorityQueue priorityQueue : holdingQueue)
 				if (priorityQueue.transferPriority && priorityQueue.queue.size() > 0){
 					int donationPriority = priorityQueue.queue.lastKey().getEffectivePriority();
@@ -277,10 +281,11 @@ public class PriorityScheduler extends Scheduler {
 			for (PriorityQueue priorityQueue : waitingQueue.keySet())
 				priorityQueue.queue.put(this, thread);
 			
+			/** decide whether is required to donate its effective priority*/
 			if (oldEffectivePriority != effectivePriority)
 				for (PriorityQueue priorityQueue: waitingQueue.keySet())
 					if (priorityQueue.transferPriority && priorityQueue.holderThread != null)
-						//not sure whether it is right
+						/** pruning to speed up*/
 						if(oldEffectivePriority == getThreadState(priorityQueue.holderThread).getEffectivePriority()
 							|| effectivePriority > getThreadState(priorityQueue.holderThread).getEffectivePriority())
 							getThreadState(priorityQueue.holderThread).updateEffectivePriority();	
@@ -294,6 +299,7 @@ public class PriorityScheduler extends Scheduler {
 		 *            the new priority.
 		 */
 		public void setPriority(int priority) {
+			/** pruning to speed up*/
 			if (this.priority == priority)
 				return;
 			this.priority = priority;
@@ -316,19 +322,23 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public void waitForAccess(PriorityQueue waitQueue) {
 			// implement me
-			//It works when a lock holder go to sleep
+
 			if(waitingQueue.containsKey(waitQueue))
 				return;
+			/** It works when a lock holder go to sleep */
 			release(waitQueue);
 			/**
 			 * The method should only be called if the associated thread cannot
 			 * immediately obtain access
 			 */
 			long startWaitingTime = Machine.timer().getTime();
-			//The order of following two lines is important
+			/** The order of following two lines is important
+			 *  since we override the comparator. */
 			waitingQueue.put(waitQueue, startWaitingTime);
 			waitQueue.queue.put(this, thread);
-			if(waitQueue.holderThread != null)
+			/** Donate its priority if needed*/
+			if(waitQueue.holderThread != null
+					&& this.getEffectivePriority() > getThreadState(waitQueue.holderThread).getEffectivePriority())
 				getThreadState(waitQueue.holderThread).updateEffectivePriority();
 			// finish implementation
 		}
@@ -348,6 +358,8 @@ public class PriorityScheduler extends Scheduler {
 			if(waitQueue.holderThread != null)
 				getThreadState(waitQueue.holderThread).release(waitQueue);
 			if(waitingQueue.containsKey(waitQueue)){
+				/** The order of following two lines is important
+				 *  since we override the comparator. */
 				waitQueue.queue.remove(this);
 				waitingQueue.remove(waitQueue);
 			}
@@ -380,9 +392,5 @@ public class PriorityScheduler extends Scheduler {
 		/** The key store the system clock when associated enters the queue*/
 		protected HashMap<PriorityQueue, Long> waitingQueue;
 		protected HashSet<PriorityQueue> holdingQueue;
-	}
-	
-	public static void selfTest(){
-	
 	}
 }

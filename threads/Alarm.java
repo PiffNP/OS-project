@@ -21,22 +21,6 @@ public class Alarm {
     	Machine.timer().setInterruptHandler(new Runnable() {
     		public void run() { timerInterrupt(); }
 	    	});
-	    /*
-	    Comparator<KThreadWithTime> order =  new Comparator<KThreadWithTime>(){  
-            public int compare(KThreadWithTime thread1, KThreadWithTime thread2) {  
-                if(thread1.wakeTime<thread2.wakeTime){
-                    return -1;
-                }
-                else if(thread1.wakeTime==thread2.wakeTime){
-                    return 0;
-                } 
-                else{
-                    return 1;
-                }
-            } 
-        };
-	    queue=new PriorityQueue<KThreadWithTime>(11,order);
-	    //*/
 		queue = new TreeMap<Long, KThread>();
     }
 
@@ -50,14 +34,9 @@ public class Alarm {
     	boolean intStatus = Machine.interrupt().disable();
 	    //* critical section begins */
 	    long currentTime = Machine.timer().getTime();
+	    /** ready those threads which finish waiting*/
 	    while(queue.size() > 0 && queue.firstKey() <= currentTime)
 	    	queue.pollFirstEntry().getValue().ready();
-	    /*
-	    while(queue.size()>0 && queue.peek().wakeTime>=currentTime){
-	        queue.poll().thread.ready();
-	    }
-	    //*/
-	    //* critical section ends */
 	    Machine.interrupt().restore(intStatus);
 	    
 	    KThread.currentThread().yield();
@@ -87,16 +66,6 @@ public class Alarm {
         Machine.interrupt().restore(intStatus);
     }
     
-    /*
-    private class KThreadWithTime{
-        KThreadWithTime(KThread thread,long wakeTime){
-            this.thread=thread;
-            this.wakeTime=wakeTime;
-        }
-        public KThread thread;
-        public long wakeTime;
-    }
-    private Queue<KThreadWithTime> queue;
-    //*/
+    /** the TreeMap stores those waiting threads*/
     private TreeMap<Long, KThread> queue;
 };

@@ -193,9 +193,11 @@ public class KThread {
     	toBeDestroyed = currentThread;
     	
     	currentThread.status = statusFinished;
-	
+    	
+    	/** if this thread has been joined*/
     	if(currentThread.joinThread != null){
     		Lib.debug(dbgThread, "ready thread: " + currentThread.joinThread.toString());
+    		/** cancel priority donation*/
     		currentThread.joinQueue.acquire(currentThread.joinThread);
     		currentThread.joinThread.ready();
     	}
@@ -286,9 +288,11 @@ public class KThread {
     	
     	boolean intStatus = Machine.interrupt().disable();
     	/** critical section begins*/
+    	/** do nothing when joining a finished thread*/
     	if(status == statusFinished){
     		Lib.debug(dbgThread, "finished thread, return");
     	} else {
+    		/** use joinQueue for priority donation*/
     		this.joinQueue.acquire(this);
     		this.joinQueue.waitForAccess(currentThread);
     		joinThread = currentThread;

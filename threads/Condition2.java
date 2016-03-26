@@ -76,6 +76,7 @@ public class Condition2 {
     	/** critical section ends*/
     	Machine.interrupt().restore(intStatus);
     }
+    /** the queue store those threads sleeping in the condition*/
     private Queue<KThread> sleepingThreads;
     private Lock conditionLock;
 }
