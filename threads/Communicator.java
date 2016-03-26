@@ -146,5 +146,5 @@ public class Communicator {
     /** the condition for active speaker and active listener*/
     Condition channel;
     /** Flag variable to decide to use solution 1 or 2*/
-    private static boolean solutionFlag = false;
+    private static boolean solutionFlag = true;
 }
