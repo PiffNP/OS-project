@@ -15,7 +15,6 @@ public class Communicator {
      * Allocate a new communicator.
      */
     public Communicator() {
-        //this.messages = new LinkedList<Integer>();
         this.lock = new Lock();
         this.speaker = new Condition(this.lock);
         this.listener = new Condition(this.lock);
@@ -69,15 +68,6 @@ public class Communicator {
     		listener.wake();
         	lock.release();
     	}
-
-    	/*
-        lock.acquire();
-        messages.add(word);
-        listenCanSee.wake();
-        speakCanQuit.sleep();
-        listenCanQuit.wake();
-        lock.release();
-        //*/
     }
 
     /**
@@ -125,24 +115,18 @@ public class Communicator {
     		lock.release();
     		return word;
     	}
-    	/*
-        lock.acquire();
-        listenCanSee.sleep();
-        assert(messages.size()>0);
-        int message=messages.poll();
-        speakCanQuit.wake();
-        listenCanQuit.sleep();
-        lock.release();
-        return message;
-        //*/
     }
     
-    //Queue<Integer> messages;
+    public static void setSolutionFlag(boolean flag){
+    	solutionFlag = flag;
+    }
+    
+    public static boolean getSolutionFlag(){
+    	return solutionFlag;
+    }
+    
     int message;
     Lock lock;
-    //Condition speakCanQuit;
-    //Condition listenCanSee;
-    //Condition listenCanQuit;
     int activeSpeaker;
     int waitingSpeaker;
     int activeListener;
@@ -150,5 +134,5 @@ public class Communicator {
     Condition speaker;
     Condition listener;
     Condition channel;
-    private static final boolean solutionFlag = true;
+    private static boolean solutionFlag = true;
 }
