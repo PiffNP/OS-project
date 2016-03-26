@@ -2,6 +2,20 @@ package nachos.threads;
 import nachos.ag.BoatGrader;
 import nachos.machine.*;
 
+/** The idea of the implementation is that we can make children identify their job,
+ * and two of them will become "leader" and "subleader" to guide the rest to the other side.
+ * The procedure is: leader and subleader goes to Molokai, leader back,
+ * call one guy to goto the other side, that guy call subleader back, finishing a cycle.
+ * 
+ * After leader and subleader goes to Molokai, leader will wake up boat to decide 
+ * if they should stop there.
+ *
+ * We use a Priority Schduler to ensure that once waked up, the boat thread will
+ * immediately check ending condition before any other thread.
+ * 
+ * The commented print statements will give a hint about what's happening.
+ */
+
 public class Boat
 {
     static BoatGrader bg;
@@ -10,39 +24,33 @@ public class Boat
     {
 	BoatGrader b = new BoatGrader();
 	
-	System.out.println("\n ***Testing Boats with only 3 children***");
+	System.out.println("\n ***Testing Boats***");
 	begin(100, 100, b);
 
-//	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
-//  	begin(1, 2, b);
-
-//  	System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-//  	begin(3, 3, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
     {
-	// Store the externally generated autograder in a class
-	// variable to be accessible by children.
 	boolean intStatus = Machine.interrupt().disable();
 	Lib.assertTrue(ThreadedKernel.scheduler instanceof PriorityScheduler);
 	PriorityScheduler scheduler=(PriorityScheduler)ThreadedKernel.scheduler;
+	/* We set the boat's priority to be higher than default
+	 * to make sure it check ending condition before any
+	 * forked threads.
+	 */
 	scheduler.setPriority(KThread.currentThread(),2);
     Machine.interrupt().restore(intStatus);
 	bg = b;
 	// Instantiate global variables here
 	lock=new Lock();
 	boat_lock=new Lock();
-	//canEnd=new Condition(lock);
 	waitForEnd=new Condition(boat_lock);
 	waitForTravel=new Condition(lock);
 	leaderCanRun=new Condition(lock);
 	subleaderCanRun=new Condition(lock);
-	childId=0;
-	waitingNumber=0;
-	finished=0;
-	// Create threads here. See section 3.4 of the Nachos for Java
-	// Walkthrough linked from the projects page.
+	childId=0;			//used for identification of jobs of childs
+	waitingNumber=0;	//used for possible race
+	finished=0;			//used for boat to decide ending condition
 	Runnable adult = new Runnable() {
     public void run() {
             AdultItinerary();
@@ -65,32 +73,20 @@ public class Boat
 	}
 	while(true){
 		boat_lock.acquire();
-		//System.out.println("boat sleep");
 		waitForEnd.sleep();
-		//System.out.println("boat wakeup");
 		if(finished==children+adults){
 			boat_lock.release();
 			lock.acquire();
 			//System.out.println("finished");
 			return;	
 		}
-		//System.out.println(""+finished+" "+children+" "+adults);
-		//System.out.println("boat check FALL!!!!!!");
 		boat_lock.release();
 	}
     }
 
     static void AdultItinerary()
     {
-	bg.initializeAdult(); //Required for autograder interface. Must be the first thing called.
-	//DO NOT PUT ANYTHING ABOVE THIS LINE. 
-
-	/* This is where you should put your solutions. Make calls
-	   to the BoatGrader to show that it is synchronized. For
-	   example:
-	       bg.AdultRowToMolokai();
-	   indicates that an adult has rowed the boat across to Molokai
-	*/
+		bg.initializeAdult();
 		lock.acquire();
 		waitingNumber+=1;
 		if(waitingNumber==1){
@@ -105,11 +101,9 @@ public class Boat
 
     static void ChildItinerary()
     {
-	bg.initializeChild(); //Required for autograder interface. Must be the first thing called.
-	//DO NOT PUT ANYTHING ABOVE THIS LINE. 
+		bg.initializeChild(); 
 		lock.acquire();
-		int id=childId;
-    	childId+=1;
+		int id=childId;childId+=1;
     	if(id==0){
     		//Leader
     		while(true){
@@ -135,12 +129,12 @@ public class Boat
 				leaderCanRun.sleep();
     		}
     	}else if(id==1){
-    		//SubLeader, must be after leader
+    		//SubLeader, must be called after leader
     		while(true){
     			//System.out.println("subleader to molokai");
     			bg.ChildRideToMolokai();finished++;
     			leaderCanRun.wake();
-    			subleaderCanRun.sleep();//if waked up, go back
+    			subleaderCanRun.sleep();
     			//System.out.println("subleader to oahu,call leader");
     			bg.ChildRowToOahu();finished--;
     			leaderCanRun.wake();
@@ -148,15 +142,13 @@ public class Boat
     		}
     	}
     	else{
-    		//System.out.println("passenger arrive");
+    		//literally the same as adult
     		waitingNumber+=1;
     		if(waitingNumber==1){
-    			System.out.println("XXXX");
 				leaderCanRun.wake();
 			}
     		waitForTravel.sleep();
     		waitingNumber-=1;
-    		//System.out.println("passenger goes to Molokai");
     		bg.ChildRowToMolokai();finished++;
     		subleaderCanRun.wake();
     		lock.release();
