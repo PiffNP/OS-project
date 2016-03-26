@@ -176,8 +176,144 @@ public class Tests{
 				unitTestStart();
 				unitTestCheck(true);
 			}
-		} else if(testType == AlarmTest){
+		} else if(testType == ConditionTest){
+			class ConditionTest implements Runnable {
+				public void run() {
+					Condition2 cond = new Condition2(new Lock());
+					try {
+						cond.sleep();
+						flag = false;
+					}
+					catch (Error e) {
+						System.out.println("error caught: sleep without lock");
+					}
+					try {
+						cond.wake();
+						flag = false;
+					}
+					catch (Error e) {
+						System.out.println("error caught: wake without lock");
+					}
+					try {
+						cond.wakeAll();
+						flag = false;
+					}
+					catch (Error e) {
+						System.out.println("error caught: wakeAll without lock");
+					}
+					unitTestEnd();
+				}
+			}
+			{
+				unitTestInit("Condition2 basic security test");
+				KThread kt1 = new KThread(new ConditionTest()).setName("ConditionTest1");
+				kt1.fork();
+				unitTestStart();
+				unitTestCheck(true);
+			}
 			
+			class ConditionTest2 implements Runnable {
+				ConditionTest2(Lock lock, Condition2 cond, KThread target){
+					this.lock = lock;
+					this.cond = cond;
+					this.target = target;
+				}
+				public void run() {
+					if(target == null){
+						lock.acquire();
+						cond.sleep();
+						flag = lock.isHeldByCurrentThread();
+						lock.release();
+						unitTestEnd();
+					} else {
+						lock.acquire();
+						cond.wake();
+						lock.release();
+					}
+				}
+				private Lock lock;
+				private Condition2 cond;
+				private KThread target = null;				
+			}
+			{
+				unitTestInit("Condition2 wake up with holding the lock.");
+				Lock lock = new Lock();
+				Condition2 cond = new Condition2(lock);
+				KThread kt1 = new KThread(new ConditionTest2(lock, cond, null)).setName("sleeper");
+				KThread kt2 = new KThread(new ConditionTest2(lock, cond, kt1)).setName("waker");
+				kt1.fork();
+				kt2.fork();
+				unitTestStart();
+				unitTestCheck(true);
+			}
+			{
+				class ZCounter {
+					public ZCounter init(){
+						sleepCounter = awakeCounter = 0;
+						return this;
+					}
+					
+					public int sleepCounter;
+					public int awakeCounter;
+				}
+				
+				class ConditionTest3 implements Runnable {
+					ConditionTest3(Lock lock, Condition2 cond, ZCounter mCounter){
+						this.lock = lock;
+						this.cond = cond;
+						this.mCounter = mCounter;
+					}
+					
+					public void run() {
+						lock.acquire();
+						mCounter.sleepCounter++;
+						cond.sleep();
+						mCounter.awakeCounter++;
+						lock.release();
+					}
+					private Lock lock;
+					private Condition2 cond;
+					private ZCounter mCounter;
+				}
+								
+				ZCounter mCounter = new ZCounter().init();
+
+				Lock lock = new Lock();
+				Condition2 cond = new Condition2(lock);
+				final int total = 5;
+				
+				unitTestInit("Condition2 wake() wakes only one process.");
+				for(int i = 0; i < total; i++)
+					new KThread(new ConditionTest3(lock, cond, mCounter)).fork();
+				while(mCounter.sleepCounter != total){
+					KThread.yield();
+				}
+				lock.acquire();
+				cond.wake();
+				lock.release();
+				KThread.yield();
+				flag = (mCounter.awakeCounter == 1);
+				unitTestCheck(true);
+				
+				unitTestInit("Condition2 wakeall() wakes all processes.");
+				lock.acquire();
+				cond.wakeAll();
+				lock.release();
+				KThread.yield();
+				flag = (mCounter.awakeCounter == total);
+				unitTestCheck(true);
+				
+			}
+		} else if(testType == AlarmTest){
+			unitTestInit("waitUntil test");
+			Alarm test = new Alarm();
+			for (int i = 0; i < 5; i++){
+				long waitTime = (long)(Math.random() * 1000000);
+				long s, t;
+				System.out.println((s = Machine.timer().getTime()) + ": Plan to wait for " + waitTime + " ticks.");
+				test.waitUntil(waitTime);
+				System.out.println((t = Machine.timer().getTime()) + ": Wake after " + (t - s) + " ticks.");
+			}
 		} else if(testType == CommunicatorTest){
 			/**
 			 * we have implemented two kinds of Communicators. We only give test for the first
@@ -255,11 +391,82 @@ public class Tests{
 					KThread.yield();
 				System.out.println("(Required to be checked manually.)");
 			}
+		} else if(testType == PrioritySchedulerTest){
+			class LockDonationTest implements Runnable {
+				LockDonationTest(Lock lock) {
+					this.lock = lock;
+				}
+
+				public void run() {
+					Lib.debug(dbgThread, "thread with high priority asks for the lock.");
+					orderCheck(1);
+					lock.acquire();
+					orderCheck(3);
+					Lib.debug(dbgThread, "thread with high priority gets the lock.");
+					lock.release();
+					Lib.debug(dbgThread, "thread with high priority releases the lock.");
+				}
+				private Lock lock;
+			}
+			{
+				unitTestInit("priority donation when waiting access to a lock");
+				Lock lock = new Lock();
+				lock.acquire();
+				Lib.debug(dbgThread, "main thread acquires the lock.");
+				KThread kt1 = new KThread(new LockDonationTest(lock)).setName("high");
+				boolean intStatus = Machine.interrupt().disable();
+				ThreadedKernel.scheduler.setPriority(kt1, 2);				
+				Machine.interrupt().restore(intStatus);
+				kt1.fork();
+				KThread.yield();
+				Lib.debug(dbgThread, "main thread releases the lock.");
+				orderCheck(2);
+				lock.release();
+				KThread.yield();
+				orderCheck(4);
+				unitTestCheck(true);
+			}
+			{
+				unitTestInit("priority donation transitivity");
+				Lock lock = new Lock();
+				lock.acquire();
+				Lib.debug(dbgThread, "main thread acquires the lock.");
+				final int thread_num = 6;
+				final int queue_num = 3;
+				KThread kt[] = new KThread[thread_num];
+				for(int i = 0; i < thread_num; i++)
+					kt[i] = new KThread().setName(i + "");
+				ThreadQueue queue[] = new ThreadQueue[queue_num];
+				for(int i = 0; i < queue_num; i++)
+					queue[i] = ThreadedKernel.scheduler.newThreadQueue(true);
+				boolean intStatus = Machine.interrupt().disable();
+				try{
+					for(int i = 0; i < 3; i++){
+						queue[i].acquire(kt[i + 1]);
+						queue[i].waitForAccess(kt[i]);
+					}
+					ThreadedKernel.scheduler.setPriority(kt[0], 2);
+					Lib.assertTrue(ThreadedKernel.scheduler.getEffectivePriority(kt[3]) == 2);
+					ThreadedKernel.scheduler.setPriority(kt[4], 3);
+					queue[0].waitForAccess(kt[4]);
+					Lib.assertTrue(ThreadedKernel.scheduler.getEffectivePriority(kt[3]) == 3);
+					queue[0].acquire(kt[4]);
+					Lib.assertTrue(ThreadedKernel.scheduler.getEffectivePriority(kt[3]) == 1);
+					queue[0].waitForAccess(kt[1]);
+					queue[2].waitForAccess(kt[4]);
+					ThreadedKernel.scheduler.setPriority(kt[1], 4);					
+					Lib.assertTrue(ThreadedKernel.scheduler.getEffectivePriority(kt[3]) == 4);
+					ThreadedKernel.scheduler.setPriority(kt[1], 1);
+					Lib.assertTrue(ThreadedKernel.scheduler.getEffectivePriority(kt[3]) == 3);
+				} catch (Error e){
+					flag = false;
+				}
+				Machine.interrupt().restore(intStatus);
+				unitTestCheck(true);
+			}
 		} else if(testType == BoatTest){
 		    Boat.selfTest();
-		} else if(testType == PrioritySchedulerTest){
-		
-		}	
+		} 	
 	}	
 	
 	/** Test Tools */
@@ -314,5 +521,6 @@ public class Tests{
 	public static final int BoatTest = PrioritySchedulerTest + 1;
 	public static final int CommunicatorTest = BoatTest + 1;
 	public static final int AlarmTest = CommunicatorTest + 1;
+	public static final int ConditionTest = AlarmTest + 1;
 }
 

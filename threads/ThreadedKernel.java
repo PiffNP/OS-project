@@ -49,6 +49,7 @@ public class ThreadedKernel extends Kernel {
     System.out.println("Self test begins. May use \"-d z\" option to display more details.");
 	//KThread.selfTest();
     Tests.test(Tests.KThreadJoinTest);
+    Tests.test(Tests.ConditionTest);
     Tests.test(Tests.AlarmTest);
     Tests.test(Tests.CommunicatorTest);
     Tests.test(Tests.PrioritySchedulerTest);
