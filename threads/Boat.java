@@ -25,7 +25,7 @@ public class Boat
 	BoatGrader b = new BoatGrader();
 	
 	System.out.println("\n ***Testing Boats***");
-	begin(100, 100, b);
+	begin(3, 3, b);
 
     }
 
@@ -78,6 +78,7 @@ public class Boat
 			boat_lock.release();
 			lock.acquire();
 			//System.out.println("finished");
+			iteration++;
 			return;	
 		}
 		boat_lock.release();
@@ -106,6 +107,7 @@ public class Boat
 		int id=childId;childId+=1;
     	if(id==0){
     		//Leader
+    		int currentIteration=iteration;
     		while(true){
     			//System.out.println("Leader to Molakai");
 	    		bg.ChildRowToMolokai();finished++;
@@ -118,6 +120,12 @@ public class Boat
 				lock.release();
 				KThread.yield();
 				lock.acquire();
+				//System.out.println("Leader acquire lock");
+				if(iteration!=currentIteration){
+					//System.out.println("Leader kill itself");
+					lock.release();
+					KThread.finish();
+				}
 				//System.out.println("Leader go to oahu");
 				bg.ChildRowToOahu();finished--;
 				if(waitingNumber==0){
@@ -163,4 +171,5 @@ public class Boat
     static int childId;
     static Lock lock;
     static Lock boat_lock;
+    static int iteration=0;
 }

@@ -1,6 +1,6 @@
 package nachos.threads;
 import nachos.machine.*;
-
+import nachos.ag.BoatGrader;
 /** Various tests done here*/
 public class Tests{	
 	public static void test(int testType){		
@@ -465,7 +465,13 @@ public class Tests{
 				unitTestCheck(true);
 			}
 		} else if(testType == BoatTest){
-		    Boat.selfTest();
+		    BoatGrader b=new BoatGrader();
+		   	unitTestInit("0 adult, 2 children");
+		    Boat.begin(0,2,b);
+		    unitTestInit("2 adult, 4 children");
+		    Boat.begin(2,4,b);
+		   	unitTestInit("10 adult, 10 children");
+		    Boat.begin(10,10,b);
 		} 	
 	}	
 	
