@@ -1,5 +1,6 @@
 package nachos.threads;
 import nachos.ag.BoatGrader;
+import nachos.machine.*;
 
 public class Boat
 {
@@ -10,7 +11,7 @@ public class Boat
 	BoatGrader b = new BoatGrader();
 	
 	System.out.println("\n ***Testing Boats with only 3 children***");
-	begin(1, 2, b);
+	begin(100, 100, b);
 
 //	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
 //  	begin(1, 2, b);
@@ -23,11 +24,17 @@ public class Boat
     {
 	// Store the externally generated autograder in a class
 	// variable to be accessible by children.
+	boolean intStatus = Machine.interrupt().disable();
+	Lib.assertTrue(ThreadedKernel.scheduler instanceof PriorityScheduler);
+	PriorityScheduler scheduler=(PriorityScheduler)ThreadedKernel.scheduler;
+	scheduler.setPriority(KThread.currentThread(),2);
+    Machine.interrupt().restore(intStatus);
 	bg = b;
 	// Instantiate global variables here
 	lock=new Lock();
-	canEnd=new Condition(lock);
-	waitForEnd=new Condition(lock);
+	boat_lock=new Lock();
+	//canEnd=new Condition(lock);
+	waitForEnd=new Condition(boat_lock);
 	waitForTravel=new Condition(lock);
 	leaderCanRun=new Condition(lock);
 	subleaderCanRun=new Condition(lock);
@@ -48,24 +55,28 @@ public class Boat
     };
     for(int i=0;i<adults;i++){
         KThread t = new KThread(adult);
-        t.setName("adult thread");
+        t.setName("adult "+i+" thread");
         t.fork();
     }
 	for(int i=0;i<children;i++){
         KThread t = new KThread(child);
-        t.setName("child thread");
+        t.setName("child "+i+" thread");
         t.fork();
 	}
 	while(true){
-		lock.acquire();
+		boat_lock.acquire();
+		//System.out.println("boat sleep");
+		waitForEnd.sleep();
+		//System.out.println("boat wakeup");
 		if(finished==children+adults){
-			lock.release();
+			boat_lock.release();
+			lock.acquire();
+			//System.out.println("finished");
 			return;	
 		}
-		System.out.println("boat call up leader");
-		canEnd.wake();
-		waitForEnd.sleep();
-		lock.release();
+		//System.out.println(""+finished+" "+children+" "+adults);
+		//System.out.println("boat check FALL!!!!!!");
+		boat_lock.release();
 	}
     }
 
@@ -102,51 +113,55 @@ public class Boat
     	if(id==0){
     		//Leader
     		while(true){
-    			System.out.println("Leader to Molakai");
+    			//System.out.println("Leader to Molakai");
 	    		bg.ChildRowToMolokai();finished++;
 	    		subleaderCanRun.wake();
 				leaderCanRun.sleep();
-				System.out.println("Leader wait for end");
+				//System.out.println("Leader wait for end");
+				boat_lock.acquire();
 				waitForEnd.wake();
-				canEnd.sleep();//if waked up, still needs work
-					System.out.println("Leader go to oahu");
+				boat_lock.release();
+				lock.release();
+				KThread.yield();
+				lock.acquire();
+				//System.out.println("Leader go to oahu");
 				bg.ChildRowToOahu();finished--;
 				if(waitingNumber==0){
-					System.out.println("Leader wait for passenger");
+					//System.out.println("Leader wait for passenger");
 					leaderCanRun.sleep();
 				}
 				waitForTravel.wake();
-				System.out.println("Leader call passenger");
+				//System.out.println("Leader call passenger");
 				leaderCanRun.sleep();
     		}
     	}else if(id==1){
     		//SubLeader, must be after leader
     		while(true){
-    			System.out.println("subleader to molokai");
+    			//System.out.println("subleader to molokai");
     			bg.ChildRideToMolokai();finished++;
     			leaderCanRun.wake();
     			subleaderCanRun.sleep();//if waked up, go back
-    			System.out.println("subleader to oahu,call leader");
+    			//System.out.println("subleader to oahu,call leader");
     			bg.ChildRowToOahu();finished--;
     			leaderCanRun.wake();
     			subleaderCanRun.sleep();
     		}
     	}
     	else{
-    		System.out.println("passenger arrive");
+    		//System.out.println("passenger arrive");
     		waitingNumber+=1;
     		if(waitingNumber==1){
+    			System.out.println("XXXX");
 				leaderCanRun.wake();
 			}
     		waitForTravel.sleep();
     		waitingNumber-=1;
-    		System.out.println("passenger goes to Molokai");
+    		//System.out.println("passenger goes to Molokai");
     		bg.ChildRowToMolokai();finished++;
     		subleaderCanRun.wake();
     		lock.release();
     	}
     }
-    static Condition canEnd;
 	static Condition leaderCanRun;
 	static Condition subleaderCanRun;
     static Condition waitForEnd;
@@ -155,4 +170,5 @@ public class Boat
     static int finished;
     static int childId;
     static Lock lock;
+    static Lock boat_lock;
 }
