@@ -1,6 +1,7 @@
 package nachos.threads;
 import nachos.machine.*;
 import nachos.ag.BoatGrader;
+import java.util.Random;
 /** Various tests done here*/
 public class Tests{	
 	public static void test(int testType){		
@@ -413,6 +414,7 @@ public class Tests{
 				}
 				private Lock lock;
 			}
+	
 			{
 				unitTestInit("priority donation when waiting access to a lock");
 				Lock lock = new Lock();
@@ -468,6 +470,43 @@ public class Tests{
 				}
 				Machine.interrupt().restore(intStatus);
 				unitTestCheck(true);
+				unitTestInit("pressure test");
+				class LockPressureTest implements Runnable {
+					LockPressureTest(Lock lock, Lock lock2) {
+						this.lock = lock;
+						this.lock2 = lock2;
+					}
+
+					public void run() {
+						if(lock==lock2){
+							return;	
+						}
+						for(int i=0;i<100;i++){
+							lock.acquire();
+							lock2.acquire();
+							lock2.release();
+							lock.release();
+						}
+					}
+					private Lock lock;
+					private Lock lock2;
+				}	
+			{
+				Lock  locks[]=new Lock[20];
+				KThread threads[]=new KThread[200];
+				Random r1=new Random(42);
+				intStatus = Machine.interrupt().disable();
+				for(int i=0;i<200;i++){
+					threads[i] = new KThread(new LockPressureTest(locks[r1.nextInt(20)],locks[r1.nextInt(20)]));
+					ThreadedKernel.scheduler.setPriority(threads[i], 2+r1.nextInt(6));				
+				}
+				for(int i=0;i<200;i++){
+					threads[i].fork();
+				}
+				Machine.interrupt().restore(intStatus);
+				KThread.yield();
+			}
+				
 			}
 		} else if(testType == BoatTest){
 		    BoatGrader b = new BoatGrader();
