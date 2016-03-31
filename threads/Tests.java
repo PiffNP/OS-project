@@ -470,7 +470,8 @@ public class Tests{
 				}
 				Machine.interrupt().restore(intStatus);
 				unitTestCheck(true);
-				unitTestInit("pressure test");
+				unitTestInit("pressure test, designate locks to random processes with random priority");
+				
 				class LockPressureTest implements Runnable {
 					LockPressureTest(Lock lock, Lock lock2) {
 						this.lock = lock;
