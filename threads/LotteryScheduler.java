@@ -3,12 +3,11 @@ package nachos.threads;
 import nachos.machine.*;
 
 import java.util.TreeSet;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeMap;
-
+import java.util.Random;
 /**
  * A scheduler that chooses threads using a lottery.
  *
@@ -72,6 +71,21 @@ public class LotteryScheduler extends PriorityScheduler {
     	@Override
     	public KThread nextThread() {
 			Lib.assertTrue(Machine.interrupt().disabled());
+			if(queue.isEmpty())
+				return null;
+			else{
+				int cnt = 0;
+				for (ThreadState threadState: queue.keySet())
+					cnt += threadState.getEffectivePriority();
+				int draw = rng.nextInt(cnt) + 1;
+				for (ThreadState threadState: queue.keySet()){
+					cnt -= threadState.getEffectivePriority();
+					if (cnt <= 0) {
+						threadState.acquire(this);
+						return queue.get(threadState);
+					}
+				}
+			}
 			return null;
 			// implement me
 		}
@@ -79,8 +93,12 @@ public class LotteryScheduler extends PriorityScheduler {
     	@Override
 		protected ThreadState pickNextThread() {
 			// implement me
+			Lib.assertNotReached();
     		return null;
+    		// finish implementation
 		}
+    	
+    	private Random rng = new Random();
     	private KThread holderThread;
     	private HashMap<ThreadState, KThread> queue;
     }
