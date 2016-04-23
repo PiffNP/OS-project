@@ -3,6 +3,7 @@ package nachos.threads;
 import nachos.machine.*;
 
 import java.util.TreeSet;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -105,7 +106,11 @@ public class LotteryScheduler extends PriorityScheduler {
     
     protected class ThreadState extends PriorityScheduler.ThreadState{
 		public ThreadState(KThread thread) {
-			super(thread);
+			this.thread = thread;
+			this.waitingQueue = new HashMap<PriorityQueue, Long>();
+			this.holdingQueue = new HashSet<PriorityQueue>();
+			this.effectivePriority = priorityDefault;
+			setPriority(priorityDefault);
 		}
 		
 		protected void updateEffectivePriority() {
