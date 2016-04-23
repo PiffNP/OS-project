@@ -6,6 +6,8 @@ import nachos.userprog.*;
 
 import java.io.EOFException;
 
+import java.util.HashSet;
+import java.util.HashMap;
 /**
  * Encapsulates the state of a user process that is not contained in its
  * user thread (or threads). This includes its address translation state, a
@@ -31,6 +33,10 @@ public class UserProcess {
 	fileTable=new OpenFile[maxFile];//by requirement at most 16 file
 	fileTable[0]=UserKernel.console.openForReading();
 	fileTable[1]=UserKernel.console.openForWriting();
+	//assign process ID
+	processID=getProcessID();
+	childs=new HashMap<int,UserProcess>();
+	childExits=new HashMap<int,int>();
 	}
     
     /**
@@ -55,9 +61,10 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
 	if (!load(name, args))
 	    return false;
-	
-	new UThread(this).setName(name).fork();
-
+	Lib.assertTrue(thread==null);
+	thread=new UThread(this);
+	thread.setName(name);
+	thread.fork();
 	return true;
     }
 
@@ -105,6 +112,12 @@ public class UserProcess {
 	return null;
     }
 
+	public Integer readVirtualMemoryInt(int vaddr) {
+		byte[] bytes= new byte[4];
+		int bytesRead=readVirtualMemory(vaddr,bytes);
+		if(bytesRead!=4) return null;
+		return Integer(Libs.bytesToInt(bytes));
+	}
     /**
      * Transfer data from this process's virtual memory to all of the specified
      * array. Same as <tt>readVirtualMemory(vaddr, data, 0, data.length)</tt>.
@@ -343,17 +356,162 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-
+	if(processID!=0){
+		return 0;
+	}
 	Machine.halt();
 	
 	Lib.assertNotReached("Machine.halt() did not halt machine!");
 	return 0;
     }
 
-	private int handleCreate(int ) {
-		ThreadedKernel.fileSystem.
+	private int handleCreateOpen(int a0,boolean isCreate) {
+		string name=readVirtualMemoryString(a0,maxBufferSize);
+		if(name==null){
+			System.out.println("[create/open]read name fail");
+			return -1;
+		}
+		int ret=-1;
+		for(int i=0;i<maxFile;i++){
+			if(fileTable[i]==null){
+				ret=i;
+				break;
+			}
+		}
+		if(ret==-1){
+			System.out.println("[create/open]fileTable full");
+			return -1;
+		}
+		OpenFile file=ThreadedKernel.fileSystem.open(name,isCreate);
+		if(file==null){
+			System.out.println("[create/open] open fail");
+			return -1;
+		}
+		fileTable[ret]=file;
+		return ret;
 	}
 
+	private int handleRead(int a0,int a1, int a2){
+		if(a0<0 || a0>=maxFile || fileTable[a0]==null){
+			System.out.println("[read]invalid file id");
+			return -1;
+		}
+		if(a2<1){
+			System.out.println("[read]invalid count");
+			return -1;
+		}
+		OpenFileWithPosition file=(OpenFileWithPosition)fileTable[a0];
+		byte[] buffer=new byte[a2];
+		int read_res=file.read(buffer,0,a2);
+		if(read_res<0){
+			return -1;
+		}
+		int write_res=writeVirtualMemory(a1,buffer,0,read_res);
+		if(write_res!=read_res){
+			System.out.println("[read]error writing memory");
+			return -1;
+		}
+		return read_res;
+	}
+	
+	private int handleWrite(int a0,int a1, int a2){
+		if(a0<0 || a0>=maxFile || fileTable[a0]==null){
+			System.out.println("[write]invalid file id");
+			return -1;
+		}
+		if(a2<1){
+			System.out.println("[write]invalid count");
+			return -1;
+		}
+		OpenFileWithPosition file=(OpenFileWithPosition)fileTable[a0];
+		byte[] buffer=new byte[a2];
+		int read_res=readVirtualMemory(a1,buffer);
+		if(read_res!=a2){
+			System.out.println("[write]error reading memory");
+			return -1;
+		}
+		int write_res=file.write(buffer,0,a2);
+		return write_res;
+	}
+	
+	private int handleClose(int a0){
+		if(a0<0 || a0>maxFile ||fileTable[a0]==null){
+			System.out.println("[close]invalid file id");
+			return -1;
+		}
+		fileTable[a0].close();
+		return 0;
+	}
+	
+	private int handleUnlink(int a0){
+		string name=readVirtualMemoryString(a0,maxBufferSize);
+		if(name==null){
+			System.out.println("[unlink]read name fail");
+			return -1;
+		}
+		boolean res=ThreadedKernel.fileSystem.remove(name);
+		if(res==true){
+			return 0;
+		}else{
+			return -1;//XXX:not quite sure
+		}
+	}
+	
+	private int handleExec(int a0,int a1,int a2){
+		string name=readVirtualMemoryString(a0,maxBufferSize);
+		if(name==null){
+			System.out.println("[exec]read name fail");
+			return -1;
+		}
+		if(a1<0){
+			System.out.println("[exec]argc<0");
+			return -1;
+		}
+		String [] args=new String[a1];
+		for(int i=0;i<a1;i++){
+			Integer arg_adr=readVirtualMemoryInt(a2+4*i);
+			if(arg_adr==null){
+				System.out.println("[exec]read int fail");
+			}
+			String arg=readVirtualMemoryString(arg_adr.intValue(),maxBufferSize);
+			args[i]=arg;
+		}
+		UserProcess process=UserProcess.newUserProcess();
+		process.parent=this;
+		this.childIDs.put(process.processID,process);
+		boolean result=process.execute(name,args);
+		if(result==true){
+			return process.processID;
+		}else{
+			return -1;
+		}
+	}
+	
+	private int handleJoin(int a0, int a1){
+		if(!childs.containsKey(a0)){
+			System.out.println("[join]no such child");
+			return -1;
+		}
+		UserProcess child=childs.get(a0);
+		if(!childExits.containsKey(a0)){
+			//currently running
+			System.out.println("join child");
+			child.thread.join();//XXX:problematic code
+			return 0;
+		}else if(childExits.get(a0)==0){
+			//normal exit
+			return 1;
+			//XXX: clean up
+		}else{
+			//abnormal exit
+			return 0;
+			//XXX: clean up
+		}
+		
+	}
+	
+	private int handleExit
+	
     private static final int
         syscallHalt = 0,
 	syscallExit = 1,
@@ -400,18 +558,23 @@ public class UserProcess {
 	    return handleHalt();
 	//EDIT HERE
 	case syscallCreate:
-		return handleCreate(a0);
+		return handleCreateOpen(a0,true);
 	case syscallOpen:
-		return handleOpen();
+		return handleCreateOpen(a0,false);
 	case syscallRead:
-		return handleRead();
+		return handleRead(a0,a1,a2);
 	case syscallWrite:
-		return handleWrite();
+		return handleWrite(a0,a1,a2);
 	case syscallClose;
-		return handleClose();
+		return handleClose(a0);
 	case syscallUnlink:
-		return handleUnlink();
-
+		return handleUnlink(a0);
+	case syscallExec:
+		return handleExec(a0,a1,a2);
+	case syscallJoin:
+		return handleJoin(a0,a1);
+	case syscallExit:
+		return handleExit(a0);
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 	    Lib.assertNotReached("Unknown system call!");
@@ -449,7 +612,27 @@ public class UserProcess {
 	}
     }
 
-		
+	private static synchronized int getProcessID(){
+		int ret=nextProcessID;
+		nextProcessID+=1;
+		return ret;
+	}
+	private static synchronized int getProcessNumber(){
+		return processNumber;
+	}
+	private static synchronized void increaseProcessNumber(){
+		processNumber+=1;
+	}
+	private static synchronized void decreaseProcessNumber(){
+		processNumber-=1;
+		libs.assertTrue(processNumber>=0);
+	}
+	
+	protected UThread thread;
+	protected int processID;
+	protected UserProcess parent;
+	protected Map<int,UserProcess> childIDs;	
+	protected Map<int,int> childExits;//if exit normally 0, abnormally -1
 	/** The program's file descriptors */
 	protected OpenFile[] fileTable;
 
@@ -466,8 +649,11 @@ public class UserProcess {
     
     private int initialPC, initialSP;
     private int argc, argv;
-	
+
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
     private static final int maxFile=16;
+    private static final int maxBufferSize=256;
+    private static int nextProcessID=0;
+    private static int processNumber=0;
 }
