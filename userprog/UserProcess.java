@@ -350,9 +350,11 @@ public class UserProcess {
 	return 0;
     }
 
+    /*
 	private int handleCreate(int ) {
 		ThreadedKernel.fileSystem.
 	}
+	//*/
 
     private static final int
         syscallHalt = 0,
@@ -399,6 +401,7 @@ public class UserProcess {
 	case syscallHalt:
 	    return handleHalt();
 	//EDIT HERE
+	/*
 	case syscallCreate:
 		return handleCreate(a0);
 	case syscallOpen:
@@ -411,7 +414,7 @@ public class UserProcess {
 		return handleClose();
 	case syscallUnlink:
 		return handleUnlink();
-
+	*/
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 	    Lib.assertNotReached("Unknown system call!");
