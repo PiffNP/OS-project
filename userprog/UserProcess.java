@@ -27,7 +27,11 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
-    }
+	// add stdin and stdout to file table
+	fileTable=new OpenFile[maxFile];//by requirement at most 16 file
+	fileTable[0]=UserKernel.console.openForReading();
+	fileTable[1]=UserKernel.console.openForWriting();
+	}
     
     /**
      * Allocate and return a new process of the correct class. The class name
@@ -346,6 +350,9 @@ public class UserProcess {
 	return 0;
     }
 
+	private int handleCreate(int ) {
+		ThreadedKernel.fileSystem.
+	}
 
     private static final int
         syscallHalt = 0,
@@ -391,7 +398,19 @@ public class UserProcess {
 	switch (syscall) {
 	case syscallHalt:
 	    return handleHalt();
-
+	//EDIT HERE
+	case syscallCreate:
+		return handleCreate(a0);
+	case syscallOpen:
+		return handleOpen();
+	case syscallRead:
+		return handleRead();
+	case syscallWrite:
+		return handleWrite();
+	case syscallClose;
+		return handleClose();
+	case syscallUnlink:
+		return handleUnlink();
 
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -430,6 +449,10 @@ public class UserProcess {
 	}
     }
 
+		
+	/** The program's file descriptors */
+	protected OpenFile[] fileTable;
+
     /** The program being run by this process. */
     protected Coff coff;
 
@@ -446,4 +469,5 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+    private static final int maxFile=16;
 }

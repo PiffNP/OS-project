@@ -517,7 +517,9 @@ public class Tests{
 		    Boat.begin(2, 4, b);
 		   	unitTestInit("BoatTest with10 adult, 10 children");
 		    Boat.begin(10, 10, b);
-		} 	
+		}
+		
+		
 	}	
 	
 	/** Test Tools */

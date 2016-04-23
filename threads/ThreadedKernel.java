@@ -48,12 +48,14 @@ public class ThreadedKernel extends Kernel {
     public void selfTest() {
     System.out.println("Self test begins. May use \"-d z\" option to display more details.");
 	//KThread.selfTest();
+    /*
     Tests.test(Tests.KThreadJoinTest);
     Tests.test(Tests.ConditionTest);
     Tests.test(Tests.AlarmTest);
     Tests.test(Tests.CommunicatorTest);
     Tests.test(Tests.PrioritySchedulerTest);
     Tests.test(Tests.BoatTest);    
+	*/
 	Semaphore.selfTest();
 	SynchList.selfTest();
 	if (Machine.bank() != null) {
