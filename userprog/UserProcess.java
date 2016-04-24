@@ -25,10 +25,12 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
+    /* we need to use dynamic way
 	int numPhysPages = Machine.processor().getNumPhysPages();
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+	*/
 	// add stdin and stdout to file table
 	fileTable=new OpenFile[maxFile];//by requirement at most 16 file
 	fileTable[0]=UserKernel.console.openForReading();
@@ -202,7 +204,47 @@ public class UserProcess {
 
 	return amount;
     }
-
+	//Below is modified version
+	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
+		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+	
+		byte[] memory = Machine.processor().getMemory();
+		
+		int lastVPN=getVPN(current);
+		Integer currentPPN=tranlate(lastVPN);
+		if(currentPPN==null){
+			return 0;
+		}
+		int amount=0;
+		for(int i=0;i<length;i++){
+			int currentVadder=vaddr+i;
+			int vpn=getVPN(currentVaddr);
+			int vpo=getVPO(currentVaddr);
+			if(vpn!=lastVPN){
+				currentPPN=tranlate(vpn);
+				if(curentPPN==null){
+					
+				}
+				lastVPN=vpn;
+			}
+			data[offset+i]=memory[curentPPN.intValue()*pageSize+vpo];
+		}
+		next
+		return amount;
+    }
+    
+    private int getVPN(int vaddr){
+    	return vaddr/pageSize;
+    }
+    
+    /* given vpn, return ppn if found, or null if fail */
+    private Integer translate(int vpn){
+    	
+    }
+    
+    public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
+		
+    }
     /**
      * Load the executable with the specified name into this process, and
      * prepare to pass it the specified arguments. Opens the executable, reads
@@ -304,8 +346,15 @@ public class UserProcess {
 	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
 	    return false;
 	}
-
+	//calculate page table size
+	int pageTableSize=0;
+	for(int s=0;s<coff.getNumSections();s++){
+		CoffSection section=coff.getSection(s);
+		pageTableSize+=section.getLength();
+	}
+	pageTable=new new TranslationEntry[pageTableSize];
 	// load sections
+	int i=0
 	for (int s=0; s<coff.getNumSections(); s++) {
 	    CoffSection section = coff.getSection(s);
 	    
@@ -313,10 +362,16 @@ public class UserProcess {
 		      + " section (" + section.getLength() + " pages)");
 
 	    for (int i=0; i<section.getLength(); i++) {
-		int vpn = section.getFirstVPN()+i;
-
-		// for now, just assume virtual addresses=physical addresses
-		section.loadPage(i, vpn);
+			int vpn = section.getFirstVPN()+i;
+			// for now, just assume virtual addresses=physical addresses
+			//section.loadPage(i, vpn);
+			//get new physical page
+			Integer ppn=getNewPhysicalPage();
+			if(ppn==null){
+				System.out.println("physical page fail");
+			}
+			pageTable[i]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
+			section.loadPage(i,ppn.intValue());
 	    }
 	}
 	
@@ -327,6 +382,7 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+    	//TODO
     }    
 
     /**
@@ -498,7 +554,7 @@ public class UserProcess {
 			System.out.println("join child");
 			child.thread.join();//XXX:problematic code
 			return 0;
-		}else if(childExits.get(a0)==0){
+		}else if(childExits.get(a0)!=-1){
 			//normal exit
 			return 1;
 			//XXX: clean up
@@ -510,7 +566,21 @@ public class UserProcess {
 		
 	}
 	
-	private int handleExit
+	private int handleExit(int a0){
+		for(int i=0;i<maxFile;i++){
+			OpenFile file=fileTable[i];
+			if(file!=null){
+				file.close();
+			}
+		}
+		//TODO: clean up memory
+		if(parent!=null){
+			Libs.assertTrue(parent.childExits.containsKey(processID));
+			parent.childExits.put(processID,a0);
+		}
+		//XXX:not sure how to kill the thread
+		return 0;
+	}
 	
     private static final int
         syscallHalt = 0,
@@ -565,7 +635,7 @@ public class UserProcess {
 		return handleRead(a0,a1,a2);
 	case syscallWrite:
 		return handleWrite(a0,a1,a2);
-	case syscallClose;
+	case syscallClose:
 		return handleClose(a0);
 	case syscallUnlink:
 		return handleUnlink(a0);
