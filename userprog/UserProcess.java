@@ -211,8 +211,8 @@ public class UserProcess {
 		byte[] memory = Machine.processor().getMemory();
 		
 		int lastVPN=getVPN(current);
-		Integer currentPPN=tranlate(lastVPN);
-		if(currentPPN==null){
+		TranslationEntry entry=tranlate(lastVPN);
+		if(entry==null){
 			return 0;
 		}
 		int amount=0;
@@ -220,26 +220,35 @@ public class UserProcess {
 			int currentVadder=vaddr+i;
 			int vpn=getVPN(currentVaddr);
 			int vpo=getVPO(currentVaddr);
-			if(vpn!=lastVPN){
-				currentPPN=tranlate(vpn);
-				if(curentPPN==null){
-					
+			if(vpn!=lastVPN){//switch physical page
+				entry=tranlate(vpn);
+				if(entry==null){
+					//we cannot find such page
+					return amount;
 				}
 				lastVPN=vpn;
 			}
-			data[offset+i]=memory[curentPPN.intValue()*pageSize+vpo];
+			data[offset+i]=memory[entry.ppn*pageSize+vpo];
+			amount+=1;
 		}
-		next
 		return amount;
     }
     
     private int getVPN(int vaddr){
     	return vaddr/pageSize;
     }
+    private int getVPO(int vaddr){
+    	return vaddr%pageSize;
+    }
     
     /* given vpn, return ppn if found, or null if fail */
     private Integer translate(int vpn){
-    	
+    	for(int i=0;i<pageTableSize;i++){
+    		TranslationEntry entry=paegTable[i];
+    		if(!entry.valid) continue;
+    		
+    	}
+    	return null;
     }
     
     public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
@@ -382,7 +391,8 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-    	//TODO
+    	//TODO: free memory
+    	
     }    
 
     /**
