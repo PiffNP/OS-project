@@ -131,8 +131,8 @@ public class PriorityScheduler extends Scheduler {
 	 * A <tt>ThreadQueue</tt> that sorts threads by priority.
 	 */
 	protected class PriorityQueue extends ThreadQueue {
-		protected PriorityQueue(){this.me = this;}
-		protected PriorityQueue(boolean transferPriority) {
+		public PriorityQueue(){this.me = this;}
+		public PriorityQueue(boolean transferPriority) {
 			this.transferPriority = transferPriority;
 			this.holderThread = null;
 			this.me = this;
@@ -212,9 +212,9 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public boolean transferPriority;
 		/** The thread holds the lock of this priority queue. */
-		private KThread holderThread;
+		protected KThread holderThread;
 		/** The priority waiting queue.*/
-		private TreeMap<ThreadState, KThread> queue;
+		protected TreeMap<ThreadState, KThread> queue;
 		/** Used to replace this in comparator*/
 		private final PriorityQueue me;
 	}
@@ -227,6 +227,7 @@ public class PriorityScheduler extends Scheduler {
 	 * @see nachos.threads.KThread#schedulingState
 	 */
 	protected class ThreadState {
+		public ThreadState(){}
 		/**
 		 * Allocate a new <tt>ThreadState</tt> object and associate it with the
 		 * specified thread.
