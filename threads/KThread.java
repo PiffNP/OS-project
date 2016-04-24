@@ -198,8 +198,10 @@ public class KThread {
     	if(currentThread.joinThread != null){
     		Lib.debug(dbgThread, "ready thread: " + currentThread.joinThread.toString());
     		/** cancel priority donation*/
-    		currentThread.joinQueue.acquire(currentThread.joinThread);
-    		currentThread.joinThread.ready();
+    		if(ThreadedKernel.scheduler instanceof PriorityScheduler){
+    			currentThread.joinQueue.acquire(currentThread.joinThread);
+    			currentThread.joinThread.ready();
+    		}
     	}
     	
     	sleep();
