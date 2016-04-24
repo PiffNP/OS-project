@@ -293,8 +293,10 @@ public class KThread {
     		Lib.debug(dbgThread, "finished thread, return");
     	} else {
     		/** use joinQueue for priority donation*/
-    		this.joinQueue.acquire(this);
-    		this.joinQueue.waitForAccess(currentThread);
+    		if(ThreadedKernel.scheduler instanceof PriorityScheduler){
+    			this.joinQueue.acquire(this);
+    			this.joinQueue.waitForAccess(currentThread);
+    		}
     		joinThread = currentThread;
     		sleep();
     	}
