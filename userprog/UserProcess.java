@@ -124,6 +124,12 @@ public class UserProcess {
 		if(bytesRead!=4) return null;
 		return new Integer(Lib.bytesToInt(bytes,0));
 	}
+	public boolean writeVirtualMemoryInt(int vaddr,int value) {
+		byte[] bytes= Lib.bytesFromInt(value);
+		int bytesWrite=writeVirtualMemory(vaddr,bytes);
+		if(bytesWrite!=4) return false;
+		return true;
+	}
     /**
      * Transfer data from this process's virtual memory to all of the specified
      * array. Same as <tt>readVirtualMemory(vaddr, data, 0, data.length)</tt>.
@@ -214,7 +220,7 @@ public class UserProcess {
     */
 	//Below are modified version, to be tested later
 	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-		System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
+		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 	
 		byte[] memory = Machine.processor().getMemory();
@@ -230,7 +236,7 @@ public class UserProcess {
 				entry=translate(vpn);
 				if(entry==null){
 					//we cannot find such page
-					System.out.println("EOF, amount="+amount);
+					//System.out.println("EOF, amount="+amount);
 					return amount;
 				}
 				lastVPN=vpn;
@@ -238,11 +244,10 @@ public class UserProcess {
 			data[offset+i]=memory[entry.ppn*pageSize+vpo];
 			amount+=1;
 		}
-		System.out.println("full length, amount="+amount);
+		//System.out.println("full length, amount="+amount);
 		return amount;
     }
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-		System.out.println("write vm");
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 	
 		byte[] memory = Machine.processor().getMemory();
@@ -280,7 +285,7 @@ public class UserProcess {
     		TranslationEntry entry=pageTable[i];
     		if(!entry.valid) continue;
     		if(entry.vpn==vpn){
-    			System.out.println("translate from vpn="+vpn+" to ppn="+entry.ppn);
+    			//System.out.println("translate from vpn="+vpn+" to ppn="+entry.ppn);
     			return entry;
     		}
     	}
@@ -351,7 +356,7 @@ public class UserProcess {
 
 	// and finally reserve 1 page for arguments
 	numPages++;
-	System.out.println("in load numPages="+numPages);
+	//System.out.println("in load numPages="+numPages);
 	if (!loadSections())
 	    return false;
 
@@ -390,7 +395,7 @@ public class UserProcess {
 	    return false;
 	}
 	pageTable=new TranslationEntry[numPages];
-	System.out.println("nr_page="+numPages+" pageSize="+pageSize);
+	//System.out.println("nr_page="+numPages+" pageSize="+pageSize);
 	// load sections
 	int k=0;
 	for (int s=0; s<coff.getNumSections(); s++) {
@@ -478,13 +483,12 @@ public class UserProcess {
     }
 
 	private int handleCreateOpen(int a0,boolean isCreate) {
-		System.out.println("handle [create/open]");
 		String name=readVirtualMemoryString(a0,maxBufferSize);
 		if(name==null){
 			System.out.println("[create/open]read name fail");
 			return -1;
 		}
-		System.out.println("name="+name);
+		//System.out.println("name="+name);
 		int ret=-1;
 		for(int i=0;i<maxFile;i++){
 			if(fileTable[i]==null){
@@ -608,40 +612,42 @@ public class UserProcess {
 			return -1;
 		}
 		UserProcess child=childs.get(a0);
-		if(!childExits.containsKey(a0)){
-			//currently running
-			System.out.println("join child");
-			child.thread.join();//XXX:problematic code
-			return 0;
-		}else if(childExits.get(a0)!=-1){
-			//normal exit
+		child.thread.join();
+		if(childExits.containsKey(a0)){
+			//normally exit
+			int ret=childExits.get(a0);
+			writeVirtualMemoryInt(a1,ret);
 			return 1;
-			//XXX: clean up
 		}else{
-			//abnormal exit
+			// means it fails;
+			int ret=-1;
+			writeVirtualMemoryInt(a1,ret);
 			return 0;
-			//XXX: clean up
 		}
 		
 	}
 	
 	private int handleExit(int a0){
-		System.out.println("begin exit");
+		//System.out.println("begin exit");
 		for(int i=0;i<maxFile;i++){
 			OpenFile file=fileTable[i];
 			if(file!=null){
 				file.close();
 			}
 		}
-		System.out.println("unloadSections");
+		//System.out.println("unloadSections");
 		unloadSections();//cleanup memory
 		if(parent!=null){
-			Lib.assertTrue(parent.childExits.containsKey(processID));
+			Lib.assertTrue(!parent.childExits.containsKey(processID));
 			parent.childExits.put(processID,a0);
 		}
-		System.out.println("finish thread");
+		for(Map.Entry<Integer,UserProcess> entry:childs.entrySet()){
+			assert(entry.getValue().parent==this);
+			entry.getValue().parent=null;
+		}
+		//System.out.println("finish thread");
 		decreaseAliveProcessNumber();
-		System.out.println("alive process="+aliveProcessNumber);
+		//System.out.println("alive process="+aliveProcessNumber);
 		if(noAliveProcess()){
 			Kernel.kernel.terminate();
 		}else{
@@ -691,7 +697,7 @@ public class UserProcess {
      * @return	the value to be returned to the user.
      */
     public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
-    	System.out.println("system call "+syscall);
+    	//System.out.println("system call "+syscall);
 	switch (syscall) {
 	case syscallHalt:
 	    return handleHalt();
