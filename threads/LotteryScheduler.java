@@ -104,13 +104,13 @@ public class LotteryScheduler extends PriorityScheduler {
 			}
 		}
 
-    	/*@Override
+    	@Override
 		protected ThreadState pickNextThread() {
 			// implement me
 			Lib.assertNotReached();
     		return null;
     		// finish implementation
-		}*/
+		}
     	
     	private Random rng = new Random();
     	private HashMap<ThreadState, KThread> queue;
@@ -125,14 +125,7 @@ public class LotteryScheduler extends PriorityScheduler {
 			setPriority(priorityDefault);
 		}
 		
-		public int getPriority() {
-			return priority;
-		}
-
-		public int getEffectivePriority() {
-			return effectivePriority;
-		}
-		
+		@Override
 		public void setPriority(int priority) {
 			/** pruning to speed up*/
 			if (this.priority == priority)
