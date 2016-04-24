@@ -54,7 +54,7 @@ public class LotteryScheduler extends PriorityScheduler {
 	public static final int priorityDefault = 1;
 	public static final int priorityMinimum = 1;
 	public static final int priorityMaximum = Integer.MAX_VALUE;
-
+	
 	@Override
 	protected ThreadState getThreadState(KThread thread) {
 		if (thread.schedulingState == null)
@@ -68,7 +68,19 @@ public class LotteryScheduler extends PriorityScheduler {
     		this.holderThread = null;
     		this.queue = new HashMap<ThreadState, KThread>();
     	}
-
+    	
+    	@Override
+    	public void waitForAccess(KThread thread) {
+			Lib.assertTrue(Machine.interrupt().disabled());
+			getThreadState(thread).waitForAccess(this);
+		}
+    	
+    	@Override
+		public void acquire(KThread thread) {
+			Lib.assertTrue(Machine.interrupt().disabled());
+			getThreadState(thread).acquire(this);
+		}
+		
     	@Override
     	public KThread nextThread() {
 			Lib.assertTrue(Machine.interrupt().disabled());
@@ -76,19 +88,20 @@ public class LotteryScheduler extends PriorityScheduler {
 				return null;
 			else{
 				int cnt = 0;
+				KThread ret = null;
 				for (ThreadState threadState: queue.keySet())
 					cnt += threadState.getEffectivePriority();
 				int draw = rng.nextInt(cnt) + 1;
 				for (ThreadState threadState: queue.keySet()){
-					cnt -= threadState.getEffectivePriority();
-					if (cnt <= 0) {
+					draw -= threadState.getEffectivePriority();
+					if (draw <= 0) {
 						threadState.acquire(this);
-						return queue.get(threadState);
+						ret = threadState.thread;
+						break;
 					}
 				}
+				return ret;
 			}
-			return null;
-			// implement me
 		}
 
     	@Override
@@ -100,7 +113,6 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
     	
     	private Random rng = new Random();
-    	private KThread holderThread;
     	private HashMap<ThreadState, KThread> queue;
     }
     
@@ -113,6 +125,18 @@ public class LotteryScheduler extends PriorityScheduler {
 			setPriority(priorityDefault);
 		}
 		
+		@Override
+		public void setPriority(int priority) {
+			/** pruning to speed up*/
+			if (this.priority == priority)
+				return;
+			this.priority = priority;
+			// implement me
+			updateEffectivePriority();
+			// finish implementation
+		}
+		
+		@Override
 		protected void updateEffectivePriority() {
 			// implement me			
 			int oldEffectivePriority = this.effectivePriority;
@@ -136,6 +160,7 @@ public class LotteryScheduler extends PriorityScheduler {
 			// finish implementation
 		}
 
+		//@Override
 		public void waitForAccess(PriorityQueue waitQueue) {
 			// implement me
 			if(waitingQueue.containsKey(waitQueue))
@@ -156,6 +181,37 @@ public class LotteryScheduler extends PriorityScheduler {
 				getThreadState(waitQueue.holderThread).updateEffectivePriority();
 			// finish implementation
 		}
+		
+		//@Override
+		public void acquire(PriorityQueue waitQueue) {
+			// implement me
+			if(waitQueue.holderThread != null)
+				getThreadState(waitQueue.holderThread).release(waitQueue);
+			if(waitingQueue.containsKey(waitQueue)){
+				/** The order of following two lines is important
+				 *  since we override the comparator. */
+				waitQueue.queue.remove(this);
+				waitingQueue.remove(waitQueue);
+			}
+			waitQueue.holderThread = thread;
+			holdingQueue.add(waitQueue);
+			updateEffectivePriority();
+			// finish implementation
+		}
+
+		//@Override
+		public void release(PriorityQueue waitQueue) {
+			// implement me
+			//only lock holder can release
+			if(waitQueue.holderThread != thread)
+				return;
+			holdingQueue.remove(waitQueue);
+			waitQueue.holderThread = null;
+			updateEffectivePriority();
+			return;
+			// finish implementation
+		}
+		
 		protected HashMap<PriorityQueue, Long> waitingQueue;
 		protected HashSet<PriorityQueue> holdingQueue;
     }
