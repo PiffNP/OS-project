@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.PriorityQueue;
 /**
  * Encapsulates the state of a user process that is not contained in its
  * user thread (or threads). This includes its address translation state, a
@@ -28,21 +29,16 @@ public class UserProcess {
      */
     public UserProcess() {
     	fileSystemUtils = new FileSystemUtils();
-    	// we need to use dynamic way
-    	int numPhysPages = Machine.processor().getNumPhysPages();
-    	pageTable = new TranslationEntry[numPhysPages];
-    	for (int i=0; i<numPhysPages; i++)
-    		pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
-	
+    	
     	// add stdin and stdout to file table
-    	fileTable=new OpenFile[maxFile];//by requirement at most 16 file
-    	fileTable[0]=UserKernel.console.openForReading();
-    	fileTable[1]=UserKernel.console.openForWriting();
+    	fileTable = new OpenFile[maxFile];//by requirement at most 16 file
+    	fileTable[0] = UserKernel.console.openForReading();
+    	fileTable[1] = UserKernel.console.openForWriting();
     	//assign process ID
-    	processID=getProcessID();
-    	childs=new HashMap<Integer,UserProcess>();
-    	childExits=new HashMap<Integer,Integer>();
-    	increaseAliveProcessNumber();
+    	processID = ProcessIdentity.getProcessID();
+    	childs = new HashMap<Integer, UserProcess>();
+    	childExits = new HashMap<Integer, Integer>();
+    	ProcessIdentity.increaseAliveProcessNumber();
     }
     
     /**
@@ -125,12 +121,14 @@ public class UserProcess {
 		if(bytesRead!=4) return null;
 		return new Integer(Lib.bytesToInt(bytes,0));
 	}
+	
 	public boolean writeVirtualMemoryInt(int vaddr,int value) {
 		byte[] bytes= Lib.bytesFromInt(value);
 		int bytesWrite=writeVirtualMemory(vaddr,bytes);
 		if(bytesWrite!=4) return false;
 		return true;
 	}
+	
     /**
      * Transfer data from this process's virtual memory to all of the specified
      * array. Same as <tt>readVirtualMemory(vaddr, data, 0, data.length)</tt>.
@@ -157,6 +155,35 @@ public class UserProcess {
      *			the array.
      * @return	the number of bytes successfully transferred.
      */
+
+	 public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
+		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
+		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+	
+		byte[] memory = Machine.processor().getMemory();
+		
+		int lastVPN=-1;
+		TranslationEntry entry=null;
+		int amount=0;
+		for(int i=0;i<length;i++){
+			int currentVaddr=vaddr+i;
+			int vpn=getVPN(currentVaddr);
+			int vpo=getVPO(currentVaddr);
+			if(vpn!=lastVPN){//switch physical page
+				entry=translate(vpn);
+				if(entry==null){
+					//we cannot find such page
+					//System.out.println("EOF, amount="+amount);
+					return amount;
+				}
+				lastVPN=vpn;
+			}
+			data[offset+i]=memory[entry.ppn*pageSize+vpo];
+			amount+=1;
+		}
+		//System.out.println("full length, amount="+amount);
+		return amount;
+    }
      /*
     public int readVirtualMemory(int vaddr, byte[] data, int offset,
 				 int length) {
@@ -174,6 +201,7 @@ public class UserProcess {
 
 	return amount;
     }
+    
 	*/
     /**
      * Transfer all data from the specified array to this process's virtual
@@ -219,35 +247,6 @@ public class UserProcess {
 	return amount;
     }
     */
-	//Below are modified version, to be tested later
-	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
-		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-	
-		byte[] memory = Machine.processor().getMemory();
-		
-		int lastVPN=-1;
-		TranslationEntry entry=null;
-		int amount=0;
-		for(int i=0;i<length;i++){
-			int currentVaddr=vaddr+i;
-			int vpn=getVPN(currentVaddr);
-			int vpo=getVPO(currentVaddr);
-			if(vpn!=lastVPN){//switch physical page
-				entry=translate(vpn);
-				if(entry==null){
-					//we cannot find such page
-					//System.out.println("EOF, amount="+amount);
-					return amount;
-				}
-				lastVPN=vpn;
-			}
-			data[offset+i]=memory[entry.ppn*pageSize+vpo];
-			amount+=1;
-		}
-		//System.out.println("full length, amount="+amount);
-		return amount;
-    }
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 	
@@ -273,19 +272,21 @@ public class UserProcess {
 		}
 		return amount;
     }
+	
     private int getVPN(int vaddr){
-    	return vaddr/pageSize;
+    	return vaddr / pageSize;
     }
+    
     private int getVPO(int vaddr){
-    	return vaddr%pageSize;
+    	return vaddr % pageSize;
     }
     
     /* given vpn, return ppn if found, or null if fail */
     private TranslationEntry translate(int vpn){
-    	for(int i=0;i<numPages;i++){
-    		TranslationEntry entry=pageTable[i];
+    	for(int i = 0; i < numPages; i++){
+    		TranslationEntry entry = pageTable[i];
     		if(!entry.valid) continue;
-    		if(entry.vpn==vpn){
+    		if(entry.vpn == vpn){
     			//System.out.println("translate from vpn="+vpn+" to ppn="+entry.ppn);
     			return entry;
     		}
@@ -395,11 +396,11 @@ public class UserProcess {
     		Lib.debug(dbgProcess, "\tinsufficient physical memory");
     		return false;
     	}
-    	pageTable=new TranslationEntry[numPages];
+    	pageTable = new TranslationEntry[numPages];
     	//System.out.println("nr_page="+numPages+" pageSize="+pageSize);
     	// load sections
-    	int k=0;
-    	for (int s=0; s<coff.getNumSections(); s++) {
+    	int k = 0;
+    	for (int s = 0; s < coff.getNumSections(); s++) {
     		CoffSection section = coff.getSection(s);
 
     		Lib.debug(dbgProcess, "\tinitializing " + section.getName()
@@ -407,33 +408,30 @@ public class UserProcess {
 
     		for (int i=0; i<section.getLength(); i++) {
     			int vpn = section.getFirstVPN()+i;
-    			// for now, just assume virtual addresses=physical addresses
-
-    			//section.loadPage(i, vpn);
     			//get new physical page
-    			Integer ppn=getNewPhysicalPage();
+    			Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
     			//System.out.println("get ppn "+ppn.intValue());
-    			if(ppn==null){
+    			if(ppn == null){
     				System.out.println("physical page fail");
     			}
-    			pageTable[k]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
-    			k+=1;
-    			section.loadPage(i,ppn.intValue());
+    			pageTable[k] = new TranslationEntry(vpn, ppn.intValue(), true, false, false, false);
+    			k += 1;
+    			section.loadPage(i, ppn.intValue());
     		}
     	}
     	//load stack and argument
-    	for(int i=0;i<stackPages+1;i++){
-    		int vpn=numPages-stackPages-1+i;
+    	for(int i = 0; i < stackPages + 1; i++){
+    		int vpn = numPages - stackPages - 1 + i;
     		Lib.debug(dbgProcess, "\tinitializing stack/argument with vpn "+vpn);
-    		Integer ppn=getNewPhysicalPage();
+    		Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
     		//System.out.println("get ppn "+ppn.intValue());
-    		if(ppn==null){
+    		if(ppn == null){
     			System.out.println("physical page fail");
     		}
-    		pageTable[k]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
-    		k+=1;
+    		pageTable[k] = new TranslationEntry(vpn, ppn.intValue(), true, false, false, false);
+    		k += 1;
     	}
-    	Lib.assertTrue(k==numPages);
+    	Lib.assertTrue(k == numPages);
     	return true;
     }
 
@@ -442,8 +440,8 @@ public class UserProcess {
      */
     protected void unloadSections() {
     	for(int i=0;i<numPages;i++){
-    		TranslationEntry entry=pageTable[i];
-    		ReleasePhysicalPage(entry.ppn);
+    		TranslationEntry entry = pageTable[i];
+    		PhysicalMemoryUtils.ReleasePhysicalPage(entry.ppn);
     	}
     }    
 
@@ -569,26 +567,34 @@ public class UserProcess {
 		return write_res;
 	}
 	
+	/**
+     * Handle close() system call
+     * int close(int fd);
+     * */
 	private int handleClose(int a0){
-		if(a0<0 || a0>maxFile ||fileTable[a0]==null){
+		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[close]invalid file id");
 			return -1;
 		}
 		fileTable[a0].close();
-		fileTable[a0]=null;
+		fileTable[a0] = null;
 		return 0;
 	}
 	
+	/**
+     * Handle unlink() system call
+     * int unlink(char *name);
+     * */
 	private int handleUnlink(int a0){
-		String name=readVirtualMemoryString(a0,maxBufferSize);
-		if(name==null){
+		String name = readVirtualMemoryString(a0, maxBufferSize);
+		if(name == null){
 			System.out.println("[unlink]read name fail");
 			return -1;
 		}
-		boolean res=ThreadedKernel.fileSystem.remove(name);
-		if(res==true){
+		boolean res = ThreadedKernel.fileSystem.remove(name);
+		if(res == true){
 			return 0;
-		}else{
+		} else {
 			return -1;//XXX:not quite sure
 		}
 	}
@@ -663,9 +669,9 @@ public class UserProcess {
 			entry.getValue().parent=null;
 		}
 		//System.out.println("finish thread");
-		decreaseAliveProcessNumber();
+		ProcessIdentity.decreaseAliveProcessNumber();
 		//System.out.println("alive process="+aliveProcessNumber);
-		if(noAliveProcess()){
+		if(ProcessIdentity.noAliveProcess()){
 			Kernel.kernel.terminate();
 		}else{
 			KThread.finish();//XXX:possible wrong implementation
@@ -773,12 +779,42 @@ public class UserProcess {
     	}
     }
 
+    private static Lock ProcessIDLock = new Lock();
+    protected int processID;
+    private static int nextProcessID = 0;
+    private static int aliveProcessNumber = 0;
+    protected static class ProcessIdentity{
+    	private static int getProcessID(){
+    		ProcessIDLock.acquire();
+    		int ret = nextProcessID;
+    		nextProcessID += 1;
+    		ProcessIDLock.release();
+    		return ret;
+    	}
+    	private static boolean noAliveProcess(){
+    		ProcessIDLock.acquire();
+    		int ret = aliveProcessNumber;
+    		ProcessIDLock.release();
+    		return (ret == 0);
+    	}
+    	private static void increaseAliveProcessNumber(){
+    		ProcessIDLock.acquire();
+    		aliveProcessNumber++;
+    		ProcessIDLock.release();
+    	}
+    	private static void decreaseAliveProcessNumber(){
+    		ProcessIDLock.acquire();
+    		Lib.assertTrue(aliveProcessNumber > 0);
+    		aliveProcessNumber--;
+    		ProcessIDLock.release();
+    	}
+    }
+    
+    protected FileSystemUtils fileSystemUtils;
+	/** The program's file descriptors */
+    protected OpenFile[] fileTable;
+    private static final int maxFile = 16;
     protected class FileSystemUtils{
-    	/*private UserProcess master;
-    	protected FileSystemUtils(UserProcess process){
-    		master = process;
-    	}*/
-    	
     	int getFileDes(){
     		for(int i = 0; i < maxFile; i++){
     			if(fileTable[i] == null){
@@ -789,57 +825,42 @@ public class UserProcess {
     	}
     	
     	boolean validDes(int des){
-    		if(des < 0 || des >= maxFile || fileTable[des] == null){
-    			return false;
-    		} else
-    			return true;
+    		return (!(des < 0 || des >= maxFile || fileTable[des] == null));
     	}
     	boolean validBufferSize(int count){
-    		if(count < 1){
-    			return false;
-    		} else
-    			return true;
+    		return (count > 0);
     	}
     }
     
-	private static synchronized int getProcessID(){
-		int ret=nextProcessID;
-		nextProcessID+=1;
-		return ret;
-	}
-	private static synchronized boolean noAliveProcess(){
-		return aliveProcessNumber==0;
-	}
-	private static synchronized void increaseAliveProcessNumber(){
-		aliveProcessNumber+=1;
-	}
-	private static synchronized void decreaseAliveProcessNumber(){
-		aliveProcessNumber-=1;
-		Lib.assertTrue(aliveProcessNumber>=0);
-	}
-	
-	private static synchronized Integer getNewPhysicalPage(){
-		for(int i=0;i<physicalPageSize;i++){
-			if(physicalPageStatus[i]==false){
-				physicalPageStatus[i]=true;
-				//System.out.println("allocate new physical page "+i);
-				return new Integer(i);
-			}
-		}
-		return null;
-	}
-	private static synchronized void ReleasePhysicalPage(int ppn){
-		Lib.assertTrue(0<=ppn && ppn<physicalPageSize && physicalPageStatus[ppn]==true);
-		physicalPageStatus[ppn]=false;
-	}
+    private static Lock PMLock = new Lock();    
+    private static final int physicalPageSize = Machine.processor().getNumPhysPages();
+    private static PriorityQueue<Integer> physicalPageStatus;
+    static {
+    	physicalPageStatus = new PriorityQueue<Integer>();
+        for(int i = 0; i < physicalPageSize; i++)
+        	physicalPageStatus.add(new Integer(i));
+    }  
+    protected static class PhysicalMemoryUtils{
+    	private static Integer getNewPhysicalPage(){
+    		PMLock.acquire();
+    		Integer ret = physicalPageStatus.poll();
+    		PMLock.release();
+    		return ret;
+    	}
+    	private static void ReleasePhysicalPage(int ppn){
+    		PMLock.acquire();
+    		Lib.assertTrue(0 <= ppn && ppn < physicalPageSize);
+    		Lib.assertTrue(!physicalPageStatus.contains(ppn));
+    		physicalPageStatus.add(new Integer(ppn));
+    		PMLock.release();
+    	}    	
+    }
+    
 	
 	protected UThread thread;
-	protected int processID;
 	protected UserProcess parent;
 	protected Map<Integer,UserProcess> childs;	
 	protected Map<Integer,Integer> childExits;//if exit normally 0, abnormally -1
-	/** The program's file descriptors */
-	protected OpenFile[] fileTable;
 
     /** The program being run by this process. */
     protected Coff coff;
@@ -851,18 +872,11 @@ public class UserProcess {
 
     /** The number of pages in the program's stack. */
     protected final int stackPages = 8;
+    private static final int maxBufferSize = 256;
     
     private int initialPC, initialSP;
     private int argc, argv;
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
-    private static final int maxFile=16;
-    private static final int maxBufferSize=256;
-    private static int nextProcessID=0;
-    private static int aliveProcessNumber=0;
-    private static final int physicalPageSize=Machine.processor().getNumPhysPages();
-    private static boolean[] physicalPageStatus=new boolean[physicalPageSize];
-    
-    private FileSystemUtils fileSystemUtils;
 }
