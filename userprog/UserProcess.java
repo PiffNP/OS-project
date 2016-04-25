@@ -663,7 +663,7 @@ public class UserProcess {
 		fileSystemUtils.cleanFileTable();
 		//System.out.println("unloadSections");
 		unloadSections();//cleanup memory
-		if(parent!=null){
+		if(parent != null){
 			Lib.assertTrue(!parent.childExits.containsKey(processID));
 			parent.childExits.put(processID,a0);
 		}
@@ -778,6 +778,7 @@ public class UserProcess {
     	default:
     		Lib.debug(dbgProcess, "Unexpected exception: " +
     				Processor.exceptionNames[cause]);
+    		handleExit(-1);
     		Lib.assertNotReached("Unexpected exception");
     	}
     }
@@ -789,8 +790,7 @@ public class UserProcess {
     protected static class ProcessIdentity{
     	private static int getProcessID(){
     		ProcessIDLock.acquire();
-    		int ret = nextProcessID;
-    		nextProcessID += 1;
+    		int ret = nextProcessID++;
     		ProcessIDLock.release();
     		return ret;
     	}
@@ -851,7 +851,6 @@ public class UserProcess {
     		return (count > 0);
     	}
     	
-    	/** return true if add a ref*/
     	int addFileRef(String name){
     		int ret = 0;
     		FileLock.acquire();
@@ -868,7 +867,6 @@ public class UserProcess {
     		return ret;
     	}
     	
-    	/** return true if need to be deleted*/
     	int removeFileRef(String name){
     		int ret = 0;
     		FileLock.acquire();
@@ -896,7 +894,6 @@ public class UserProcess {
     		return ret;
     	}
     	
-    	/** return true if can be deleted right now*/
     	int markToDeleteFile(String name){
     		int ret = 0;
     		FileLock.acquire();
