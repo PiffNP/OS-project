@@ -815,7 +815,20 @@ public class UserProcess {
     	default:
     		Lib.debug(dbgProcess, "Unexpected exception: " +
     				Processor.exceptionNames[cause]);
-    		handleExit(-1);
+
+    		fileSystemUtils.cleanFileTable();
+    		unloadSections();//cleanup memory
+    		for(Map.Entry<Integer, UserProcess> entry : childs.entrySet()){
+    			assert(entry.getValue().parent == this);
+    			entry.getValue().parent = null;
+    		}
+    		ProcessIdentity.decreaseAliveProcessNumber();
+    		if(ProcessIdentity.noAliveProcess()){
+    			Kernel.kernel.terminate();
+    		}else{
+    			KThread.finish();
+    		}
+    		
     		Lib.assertNotReached("Unexpected exception");
     	}
     }
