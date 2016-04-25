@@ -163,23 +163,23 @@ public class UserProcess {
 		byte[] memory = Machine.processor().getMemory();
 		
 		int lastVPN = -1;
-		TranslationEntry entry=null;
-		int amount=0;
-		for(int i = 0;i<length;i++){
+		TranslationEntry entry = null;
+		int amount = 0;
+		for(int i = 0; i < length;i++){
 			int currentVaddr = vaddr + i;
 			int vpn = Processor.pageFromAddress(currentVaddr);
 			int vpo = Processor.offsetFromAddress(currentVaddr);
-			if(vpn!=lastVPN){//switch physical page
-				entry=translate(vpn);
-				if(entry==null){
+			if(vpn != lastVPN){//switch physical page
+				entry = translate(vpn);
+				if(entry == null){
 					//we cannot find such page
 					//System.out.println("EOF, amount="+amount);
 					return amount;
 				}
-				lastVPN=vpn;
+				lastVPN = vpn;
 			}
-			data[offset+i]=memory[entry.ppn*pageSize+vpo];
-			amount+=1;
+			data[offset + i] = memory[entry.ppn * pageSize + vpo];
+			amount++;
 		}
 		//System.out.println("full length, amount="+amount);
 		return amount;
@@ -252,23 +252,23 @@ public class UserProcess {
 	
 		byte[] memory = Machine.processor().getMemory();
 		
-		int lastVPN=-1;
-		TranslationEntry entry=null;
-		int amount=0;
-		for(int i=0;i<length;i++){
+		int lastVPN = -1;
+		TranslationEntry entry = null;
+		int amount = 0;
+		for(int i = 0; i < length; i++){
 			int currentVaddr = vaddr + i;
 			int vpn = Processor.pageFromAddress(currentVaddr);
 			int vpo = Processor.offsetFromAddress(currentVaddr);
-			if(vpn!=lastVPN){//switch physical page
-				entry=translate(vpn);
-				if(entry==null){
+			if(vpn != lastVPN){//switch physical page
+				entry = translate(vpn);
+				if(entry == null){
 					//we cannot find such page
 					return amount;
 				}
-				lastVPN=vpn;
+				lastVPN = vpn;
 			}
-			memory[entry.ppn*pageSize+vpo]=data[offset+i];
-			amount+=1;
+			memory[entry.ppn * pageSize + vpo] = data[offset + i];
+			amount += 1;
 		}
 		return amount;
     }
@@ -557,10 +557,10 @@ public class UserProcess {
 		
 		int write_res = fileTable[a0].write(buffer, 0, a2);
 		//need check whether it is correct
-		/*if(write_res != read_res){
+		if(write_res != read_res){
 			System.out.println("[write]error writing file");
 			return -1;
-		}*/
+		}
 		//int write_res = file.write(buffer,0,a2);
 		return write_res;
 	}
@@ -908,8 +908,10 @@ public class UserProcess {
     				if(!ThreadedKernel.fileSystem.remove(name))
     					ret = -1;
     			}
-    		} else
-    			ret = -1;
+    		} else{
+				if(!ThreadedKernel.fileSystem.remove(name))
+					ret = -1;
+    		}
     		FileLock.release();
     		return ret;
     	}
