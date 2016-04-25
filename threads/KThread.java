@@ -200,8 +200,8 @@ public class KThread {
     		/** cancel priority donation*/
     		if(ThreadedKernel.scheduler instanceof PriorityScheduler){
     			currentThread.joinQueue.acquire(currentThread.joinThread);
-    			currentThread.joinThread.ready();
     		}
+			currentThread.joinThread.ready();
     	}
     	
     	sleep();

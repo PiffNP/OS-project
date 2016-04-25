@@ -63,8 +63,8 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
     	if (!load(name, args))
     		return false;
-    	Lib.assertTrue(thread==null);
-    	thread=new UThread(this);
+    	Lib.assertTrue(thread == null);
+    	thread = new UThread(this);
     	thread.setName(name);
     	System.out.println("start run");
     	thread.fork();
@@ -116,16 +116,16 @@ public class UserProcess {
     }
 
 	public Integer readVirtualMemoryInt(int vaddr) {
-		byte[] bytes= new byte[4];
-		int bytesRead=readVirtualMemory(vaddr,bytes);
-		if(bytesRead!=4) return null;
+		byte[] bytes = new byte[4];
+		int bytesRead =readVirtualMemory(vaddr,bytes);
+		if(bytesRead != 4) return null;
 		return new Integer(Lib.bytesToInt(bytes,0));
 	}
 	
 	public boolean writeVirtualMemoryInt(int vaddr,int value) {
-		byte[] bytes= Lib.bytesFromInt(value);
-		int bytesWrite=writeVirtualMemory(vaddr,bytes);
-		if(bytesWrite!=4) return false;
+		byte[] bytes = Lib.bytesFromInt(value);
+		int bytesWrite = writeVirtualMemory(vaddr,bytes);
+		if(bytesWrite != 4) return false;
 		return true;
 	}
 	
@@ -593,74 +593,83 @@ public class UserProcess {
 		return fileSystemUtils.markToDeleteFile(name);
 	}
 	
-	private int handleExec(int a0,int a1,int a2){
-		String name=readVirtualMemoryString(a0,maxBufferSize);
-		if(name==null){
+	/**
+     * Handle unlink() system call
+     * int exec(char *name, int argc, char **argv);
+     * */
+	private int handleExec(int a0, int a1, int a2){
+		String name = readVirtualMemoryString(a0, maxBufferSize);
+		if(name == null || !name.endsWith(".coff")){
 			System.out.println("[exec]read name fail");
 			return -1;
 		}
-		if(a1<0){
+		if(a1 < 0){
 			System.out.println("[exec]argc<0");
 			return -1;
 		}
-		String [] args=new String[a1];
-		for(int i=0;i<a1;i++){
-			Integer arg_adr=readVirtualMemoryInt(a2+4*i);
-			if(arg_adr==null){
+		String [] args = new String[a1];
+		for(int i = 0; i < a1; i++){
+			Integer arg_adr = readVirtualMemoryInt(a2 + 4 * i);
+			if(arg_adr == null){
 				System.out.println("[exec]read int fail");
+				return -1;
 			}
-			String arg=readVirtualMemoryString(arg_adr.intValue(),maxBufferSize);
-			args[i]=arg;
+			String arg = readVirtualMemoryString(arg_adr.intValue(), maxBufferSize);
+			args[i] = arg;
 		}
-		UserProcess process=UserProcess.newUserProcess();
-		process.parent=this;
+		UserProcess process = UserProcess.newUserProcess();
+		process.parent = this;
 		this.childs.put(process.processID,process);
-		boolean result=process.execute(name,args);
-		if(result==true){
+		boolean result = process.execute(name, args);
+		if(result == true){
 			return process.processID;
-		}else{
+		} else {
 			return -1;
 		}
 	}
 	
+	/**
+     * Handle join() system call
+     * join(int pid, int *status);
+     * */
 	private int handleJoin(int a0, int a1){
 		if(!childs.containsKey(a0)){
 			System.out.println("[join]no such child");
 			return -1;
 		}
-		UserProcess child=childs.get(a0);
+		UserProcess child = childs.get(a0);
 		child.thread.join();
 		if(childExits.containsKey(a0)){
 			//normally exit
-			int ret=childExits.get(a0);
-			writeVirtualMemoryInt(a1,ret);
+			int ret = childExits.get(a0);
+			writeVirtualMemoryInt(a1, ret);
 			return 1;
 		}else{
 			// means it fails;
-			int ret=-1;
-			writeVirtualMemoryInt(a1,ret);
+			// maybe following two lines can be omited
+			int ret = -1;
+			writeVirtualMemoryInt(a1, ret);
 			return 0;
 		}
 		
 	}
 	
+	/**
+     * Handle exit() system call
+     * void exit(int status);
+     * */
 	private int handleExit(int a0){
 		//System.out.println("begin exit");
-		for(int i=0;i<maxFile;i++){
-			OpenFile file=fileTable[i];
-			if(file!=null){
-				file.close();
-			}
-		}
+		fileSystemUtils.cleanFileTable();
 		//System.out.println("unloadSections");
 		unloadSections();//cleanup memory
 		if(parent!=null){
 			Lib.assertTrue(!parent.childExits.containsKey(processID));
 			parent.childExits.put(processID,a0);
 		}
-		for(Map.Entry<Integer,UserProcess> entry:childs.entrySet()){
-			assert(entry.getValue().parent==this);
-			entry.getValue().parent=null;
+		for(Map.Entry<Integer, UserProcess> entry : childs.entrySet()){
+			assert(entry.getValue().parent == this);
+			entry.getValue().parent = null;
 		}
 		//System.out.println("finish thread");
 		ProcessIdentity.decreaseAliveProcessNumber();
@@ -668,7 +677,7 @@ public class UserProcess {
 		if(ProcessIdentity.noAliveProcess()){
 			Kernel.kernel.terminate();
 		}else{
-			KThread.finish();//XXX:possible wrong implementation
+			KThread.finish();
 		}
 		return 0;
 	}
@@ -818,6 +827,15 @@ public class UserProcess {
     			}
     		}
     		return -1;
+    	}
+    	
+    	void cleanFileTable(){
+    		for(int i = 0; i < maxFile; i++){
+    			OpenFile file = fileTable[i];
+    			if(file != null){
+    				file.close();
+    			}
+    		}
     	}
     	
     	boolean validVirtualAddress(int addr) {
