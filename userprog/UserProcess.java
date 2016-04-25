@@ -518,6 +518,10 @@ public class UserProcess {
 			System.out.println("[read]invalid count");
 			return -1;
 		}
+		if(a2 > numPages * pageSize){
+			System.out.println("[read] exceed limit");
+			return -1;
+		}
 		//not sure whether need typecast. stdin & stdout ?
 		//OpenFileWithPosition file = (OpenFileWithPosition)fileTable[a0];
 		byte[] buffer = new byte[a2];
@@ -548,6 +552,11 @@ public class UserProcess {
 			return -1;
 		}
 		//OpenFile file = fileTable[a0];
+		if(a2 > numPages * pageSize){
+			System.out.println("[write] exceed limit");
+			return -1;
+		}
+			
 		byte[] buffer = new byte[a2];
 		int read_res = readVirtualMemory(a1, buffer);
 		if(read_res != a2){
