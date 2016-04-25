@@ -383,11 +383,11 @@ public class UserProcess {
      * @return	<tt>true</tt> if the sections were successfully loaded.
      */
     protected boolean loadSections() {
-    	if (numPages > Machine.processor().getNumPhysPages()) {
+    	/*if (numPages > Machine.processor().getNumPhysPages()) {
     		coff.close();
     		Lib.debug(dbgProcess, "\tinsufficient physical memory");
     		return false;
-    	}
+    	}*/
     	pageTable = new TranslationEntry[numPages];
     	//System.out.println("nr_page="+numPages+" pageSize="+pageSize);
     	// load sections
@@ -405,6 +405,7 @@ public class UserProcess {
     			//System.out.println("get ppn "+ppn.intValue());
     			if(ppn == null){
     				System.out.println("physical page fail");
+    				return false;
     			}
     			pageTable[k] = new TranslationEntry(vpn, ppn.intValue(), true, section.isReadOnly(), false, false);
     			k += 1;
@@ -419,6 +420,7 @@ public class UserProcess {
     		//System.out.println("get ppn "+ppn.intValue());
     		if(ppn == null){
     			System.out.println("physical page fail");
+    			return false;
     		}
     		pageTable[k] = new TranslationEntry(vpn, ppn.intValue(), true, false, false, false);
     		k += 1;
