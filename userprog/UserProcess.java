@@ -406,7 +406,7 @@ public class UserProcess {
     			if(ppn == null){
     				System.out.println("physical page fail");
     			}
-    			pageTable[k] = new TranslationEntry(vpn, ppn.intValue(), true, false, false, false);
+    			pageTable[k] = new TranslationEntry(vpn, ppn.intValue(), true, section.isReadOnly(), false, false);
     			k += 1;
     			section.loadPage(i, ppn.intValue());
     		}
