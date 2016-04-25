@@ -619,7 +619,7 @@ public class UserProcess {
 		}
 		UserProcess process = UserProcess.newUserProcess();
 		process.parent = this;
-		this.childs.put(process.processID,process);
+		this.childs.put(process.processID, process);
 		boolean result = process.execute(name, args);
 		if(result == true){
 			return process.processID;
@@ -639,9 +639,11 @@ public class UserProcess {
 		}
 		UserProcess child = childs.get(a0);
 		child.thread.join();
+		childs.remove(a0);
 		if(childExits.containsKey(a0)){
 			//normally exit
 			int ret = childExits.get(a0);
+			childExits.remove(a0);
 			writeVirtualMemoryInt(a1, ret);
 			return 1;
 		}else{
