@@ -626,7 +626,7 @@ public class UserProcess {
      * */
 	private int handleExec(int a0, int a1, int a2){
 		if(!fileSystemUtils.validVirtualAddress(a0)){
-    		System.out.println("[unlink]invalid address");
+    		System.out.println("[exec]invalid address");
 			return -1;
 		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
@@ -641,7 +641,7 @@ public class UserProcess {
 		String [] args = new String[a1];
 		for(int i = 0; i < a1; i++){
 			if(!fileSystemUtils.validVirtualAddress(a2 + 4 * i)){
-	    		System.out.println("[unlink]invalid address");
+	    		System.out.println("[exec]invalid address");
 				return -1;
 			}
 			Integer arg_adr = readVirtualMemoryInt(a2 + 4 * i);
@@ -672,10 +672,27 @@ public class UserProcess {
 			System.out.println("[join]no such child");
 			return -1;
 		}
+		if(childExits.containsKey(a0)){
+			childs.remove(a0);
+			if(childExits.get(a0) != null){
+				//normally exit
+				int ret = childExits.get(a0);
+				childExits.remove(a0);
+				writeVirtualMemoryInt(a1, ret);
+				return 1;
+			}else{
+				// means it fails;
+				// maybe following two lines can be omited
+				//int ret = -1;
+				//writeVirtualMemoryInt(a1, ret);
+				return 0;
+			}
+		}
 		UserProcess child = childs.get(a0);
 		child.thread.join();
 		childs.remove(a0);
-		if(childExits.containsKey(a0)){
+		Lib.assertTrue(childExits.containsKey(a0));
+		if(childExits.get(a0) != null){
 			//normally exit
 			int ret = childExits.get(a0);
 			childExits.remove(a0);
@@ -818,6 +835,10 @@ public class UserProcess {
 
     		fileSystemUtils.cleanFileTable();
     		unloadSections();//cleanup memory
+    		if(parent != null){
+    			Lib.assertTrue(!parent.childExits.containsKey(processID));
+    			parent.childExits.put(processID, null);
+    		}
     		for(Map.Entry<Integer, UserProcess> entry : childs.entrySet()){
     			assert(entry.getValue().parent == this);
     			entry.getValue().parent = null;
