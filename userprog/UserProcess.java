@@ -557,10 +557,10 @@ public class UserProcess {
 		
 		int write_res = fileTable[a0].write(buffer, 0, a2);
 		//need check whether it is correct
-		if(write_res != read_res){
+		/*if(write_res != read_res){
 			System.out.println("[write]error writing file");
 			return -1;
-		}
+		}*/
 		//int write_res = file.write(buffer,0,a2);
 		return write_res;
 	}
