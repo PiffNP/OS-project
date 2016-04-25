@@ -158,17 +158,17 @@ public class UserProcess {
 
 	 public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
-		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+		Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
 	
 		byte[] memory = Machine.processor().getMemory();
 		
-		int lastVPN=-1;
+		int lastVPN = -1;
 		TranslationEntry entry=null;
 		int amount=0;
-		for(int i=0;i<length;i++){
-			int currentVaddr=vaddr+i;
-			int vpn=getVPN(currentVaddr);
-			int vpo=getVPO(currentVaddr);
+		for(int i = 0;i<length;i++){
+			int currentVaddr = vaddr + i;
+			int vpn = Processor.pageFromAddress(currentVaddr);
+			int vpo = Processor.offsetFromAddress(currentVaddr);
 			if(vpn!=lastVPN){//switch physical page
 				entry=translate(vpn);
 				if(entry==null){
@@ -256,9 +256,9 @@ public class UserProcess {
 		TranslationEntry entry=null;
 		int amount=0;
 		for(int i=0;i<length;i++){
-			int currentVaddr=vaddr+i;
-			int vpn=getVPN(currentVaddr);
-			int vpo=getVPO(currentVaddr);
+			int currentVaddr = vaddr + i;
+			int vpn = Processor.pageFromAddress(currentVaddr);
+			int vpo = Processor.offsetFromAddress(currentVaddr);
 			if(vpn!=lastVPN){//switch physical page
 				entry=translate(vpn);
 				if(entry==null){
@@ -271,14 +271,6 @@ public class UserProcess {
 			amount+=1;
 		}
 		return amount;
-    }
-	
-    private int getVPN(int vaddr){
-    	return vaddr / pageSize;
-    }
-    
-    private int getVPO(int vaddr){
-    	return vaddr % pageSize;
     }
     
     /* given vpn, return ppn if found, or null if fail */
@@ -499,8 +491,14 @@ public class UserProcess {
     		System.out.println("[create/open]file table full");
 			return -1;
 		}
+		if(fileSystemUtils.addFileRef(name) == -1){
+			System.out.println("[create/open]fd fail");
+			return -1;
+		}
 		if((file = ThreadedKernel.fileSystem.open(name, isCreate)) == null){
 			System.out.println("[create/open]open fail");
+			//remember to remove file ref here
+			fileSystemUtils.removeFileRef(name);
 			return -1;
 		}
 		fileTable[fileDes] = file;
@@ -576,9 +574,10 @@ public class UserProcess {
 			System.out.println("[close]invalid file id");
 			return -1;
 		}
+		String name = fileTable[a0].getName();
 		fileTable[a0].close();
 		fileTable[a0] = null;
-		return 0;
+		return fileSystemUtils.removeFileRef(name);
 	}
 	
 	/**
@@ -591,12 +590,7 @@ public class UserProcess {
 			System.out.println("[unlink]read name fail");
 			return -1;
 		}
-		boolean res = ThreadedKernel.fileSystem.remove(name);
-		if(res == true){
-			return 0;
-		} else {
-			return -1;//XXX:not quite sure
-		}
+		return fileSystemUtils.markToDeleteFile(name);
 	}
 	
 	private int handleExec(int a0,int a1,int a2){
@@ -811,8 +805,10 @@ public class UserProcess {
     }
     
     protected FileSystemUtils fileSystemUtils;
+    private static Lock FileLock = new Lock();
 	/** The program's file descriptors */
     protected OpenFile[] fileTable;
+    private static HashMap<String, Integer> fileRefCounter = new HashMap<String, Integer>();
     private static final int maxFile = 16;
     protected class FileSystemUtils{
     	int getFileDes(){
@@ -824,11 +820,80 @@ public class UserProcess {
     		return -1;
     	}
     	
+    	boolean validVirtualAddress(int addr) {
+    		int vpn = Processor.pageFromAddress(addr);
+    		return (vpn < numPages && vpn >= 0);
+    	}
+    	
     	boolean validDes(int des){
     		return (!(des < 0 || des >= maxFile || fileTable[des] == null));
     	}
+    	
     	boolean validBufferSize(int count){
     		return (count > 0);
+    	}
+    	
+    	/** return true if add a ref*/
+    	int addFileRef(String name){
+    		int ret = 0;
+    		FileLock.acquire();
+    		if(fileRefCounter.containsKey(name)){
+    			int cnt;
+    			/** less than 0 if marked to be deleted*/
+    			if((cnt = fileRefCounter.get(name).intValue()) < 0)
+    				ret = -1;
+    			else
+    				fileRefCounter.replace(name, cnt + 1);
+    		} else
+    			fileRefCounter.put(name, 1);
+    		FileLock.release();
+    		return ret;
+    	}
+    	
+    	/** return true if need to be deleted*/
+    	int removeFileRef(String name){
+    		int ret = 0;
+    		FileLock.acquire();
+    		if(fileRefCounter.containsKey(name)){
+    			int cnt;
+    			boolean flag = false;
+    			if((cnt = fileRefCounter.get(name).intValue()) > 0)
+    				cnt--;
+    			else{
+    				cnt++;
+    				flag = true;
+    			}
+    			if(cnt == 0){
+    				fileRefCounter.remove(name);
+    				if(flag){
+    					if(!ThreadedKernel.fileSystem.remove(name))
+    						ret = -1;
+    				}
+    			}
+    			else
+    				fileRefCounter.replace(name, cnt);
+    		} else
+    			ret = -1;
+    		FileLock.release();
+    		return ret;
+    	}
+    	
+    	/** return true if can be deleted right now*/
+    	int markToDeleteFile(String name){
+    		int ret = 0;
+    		FileLock.acquire();
+    		if(fileRefCounter.containsKey(name)){
+    			int cnt;
+    			if((cnt = fileRefCounter.get(name).intValue()) > 0){
+    				fileRefCounter.replace(name, -cnt);
+    			} else{
+    				if(!ThreadedKernel.fileSystem.remove(name))
+    					ret = -1;
+    			}
+    		} else
+    			ret = -1;
+    		FileLock.release();
+    		return ret;
     	}
     }
     
