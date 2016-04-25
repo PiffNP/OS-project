@@ -479,6 +479,10 @@ public class UserProcess {
      * int open(char *name);
      * */
 	private int handleCreateOpen(int a0, boolean isCreate) {
+		if(!fileSystemUtils.validVirtualAddress(a0)){
+    		System.out.println("[create/open]invalid address");
+			return -1;
+		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
 		//System.out.println("name = " + name);
 		if(name == null){
@@ -510,6 +514,10 @@ public class UserProcess {
      * int read(int fd, char *buffer, int size);
      * */
 	private int handleRead(int a0, int a1, int a2){
+		if(!fileSystemUtils.validVirtualAddress(a1)){
+    		System.out.println("[read]invalid address");
+			return -1;
+		}
 		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[read]invalid file id");
 			return -1;
@@ -543,6 +551,10 @@ public class UserProcess {
      * int write(int fd, char *buffer, int size);
      * */
 	private int handleWrite(int a0, int a1, int a2){
+		if(!fileSystemUtils.validVirtualAddress(a1)){
+    		System.out.println("[write]invalid address");
+			return -1;
+		}
 		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[write]invalid file id");
 			return -1;
@@ -594,6 +606,10 @@ public class UserProcess {
      * int unlink(char *name);
      * */
 	private int handleUnlink(int a0){
+		if(!fileSystemUtils.validVirtualAddress(a0)){
+    		System.out.println("[unlink]invalid address");
+			return -1;
+		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
 		if(name == null){
 			System.out.println("[unlink]read name fail");
@@ -607,6 +623,10 @@ public class UserProcess {
      * int exec(char *name, int argc, char **argv);
      * */
 	private int handleExec(int a0, int a1, int a2){
+		if(!fileSystemUtils.validVirtualAddress(a0)){
+    		System.out.println("[unlink]invalid address");
+			return -1;
+		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
 		if(name == null || !name.endsWith(".coff")){
 			System.out.println("[exec]read name fail");
@@ -618,6 +638,10 @@ public class UserProcess {
 		}
 		String [] args = new String[a1];
 		for(int i = 0; i < a1; i++){
+			if(!fileSystemUtils.validVirtualAddress(a2 + 4 * i)){
+	    		System.out.println("[unlink]invalid address");
+				return -1;
+			}
 			Integer arg_adr = readVirtualMemoryInt(a2 + 4 * i);
 			if(arg_adr == null){
 				System.out.println("[exec]read int fail");
