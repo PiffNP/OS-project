@@ -27,21 +27,22 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-    // we need to use dynamic way
-	int numPhysPages = Machine.processor().getNumPhysPages();
-	pageTable = new TranslationEntry[numPhysPages];
-	for (int i=0; i<numPhysPages; i++)
-	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+    	fileSystemUtils = new FileSystemUtils();
+    	// we need to use dynamic way
+    	int numPhysPages = Machine.processor().getNumPhysPages();
+    	pageTable = new TranslationEntry[numPhysPages];
+    	for (int i=0; i<numPhysPages; i++)
+    		pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
 	
-	// add stdin and stdout to file table
-	fileTable=new OpenFile[maxFile];//by requirement at most 16 file
-	fileTable[0]=UserKernel.console.openForReading();
-	fileTable[1]=UserKernel.console.openForWriting();
-	//assign process ID
-	processID=getProcessID();
-	childs=new HashMap<Integer,UserProcess>();
-	childExits=new HashMap<Integer,Integer>();
-	increaseAliveProcessNumber();
+    	// add stdin and stdout to file table
+    	fileTable=new OpenFile[maxFile];//by requirement at most 16 file
+    	fileTable[0]=UserKernel.console.openForReading();
+    	fileTable[1]=UserKernel.console.openForWriting();
+    	//assign process ID
+    	processID=getProcessID();
+    	childs=new HashMap<Integer,UserProcess>();
+    	childExits=new HashMap<Integer,Integer>();
+    	increaseAliveProcessNumber();
     }
     
     /**
@@ -64,14 +65,14 @@ public class UserProcess {
      * @return	<tt>true</tt> if the program was successfully executed.
      */
     public boolean execute(String name, String[] args) {
-	if (!load(name, args))
-	    return false;
-	Lib.assertTrue(thread==null);
-	thread=new UThread(this);
-	thread.setName(name);
-	System.out.println("start run");
-	thread.fork();
-	return true;
+    	if (!load(name, args))
+    		return false;
+    	Lib.assertTrue(thread==null);
+    	thread=new UThread(this);
+    	thread.setName(name);
+    	System.out.println("start run");
+    	thread.fork();
+    	return true;
     }
 
     /**
@@ -86,7 +87,7 @@ public class UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-	Machine.processor().setPageTable(pageTable);
+    	Machine.processor().setPageTable(pageTable);
     }
 
     /**
@@ -104,18 +105,18 @@ public class UserProcess {
      *		found.
      */
     public String readVirtualMemoryString(int vaddr, int maxLength) {
-	Lib.assertTrue(maxLength >= 0);
+    	Lib.assertTrue(maxLength >= 0);
 
-	byte[] bytes = new byte[maxLength+1];
+    	byte[] bytes = new byte[maxLength+1];
 
-	int bytesRead = readVirtualMemory(vaddr, bytes);
+    	int bytesRead = readVirtualMemory(vaddr, bytes);
 
-	for (int length=0; length<bytesRead; length++) {
-	    if (bytes[length] == 0)
-		return new String(bytes, 0, length);
-	}
+    	for (int length=0; length<bytesRead; length++) {
+    		if (bytes[length] == 0)
+    			return new String(bytes, 0, length);
+    	}
 
-	return null;
+    	return null;
     }
 
 	public Integer readVirtualMemoryInt(int vaddr) {
@@ -184,7 +185,7 @@ public class UserProcess {
      * @return	the number of bytes successfully transferred.
      */
     public int writeVirtualMemory(int vaddr, byte[] data) {
-	return writeVirtualMemory(vaddr, data, 0, data.length);
+    	return writeVirtualMemory(vaddr, data, 0, data.length);
     }
 
     /**
@@ -304,81 +305,81 @@ public class UserProcess {
      * @return	<tt>true</tt> if the executable was successfully loaded.
      */
     private boolean load(String name, String[] args) {
-	Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
-	
-	OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
-	if (executable == null) {
-	    Lib.debug(dbgProcess, "\topen failed");
-	    return false;
-	}
+    	Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
 
-	try {
-	    coff = new Coff(executable);
-	}
-	catch (EOFException e) {
-	    executable.close();
-	    Lib.debug(dbgProcess, "\tcoff load failed");
-	    return false;
-	}
+    	OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
+    	if (executable == null) {
+    		Lib.debug(dbgProcess, "\topen failed");
+    		return false;
+    	}
 
-	// make sure the sections are contiguous and start at page 0
-	numPages = 0;
-	for (int s=0; s<coff.getNumSections(); s++) {
-	    CoffSection section = coff.getSection(s);
-	    if (section.getFirstVPN() != numPages) {
-		coff.close();
-		Lib.debug(dbgProcess, "\tfragmented executable");
-		return false;
-	    }
-	    numPages += section.getLength();
-	}
+    	try {
+    		coff = new Coff(executable);
+    	}
+    	catch (EOFException e) {
+    		executable.close();
+    		Lib.debug(dbgProcess, "\tcoff load failed");
+    		return false;
+    	}
 
-	// make sure the argv array will fit in one page
-	byte[][] argv = new byte[args.length][];
-	int argsSize = 0;
-	for (int i=0; i<args.length; i++) {
-	    argv[i] = args[i].getBytes();
-	    // 4 bytes for argv[] pointer; then string plus one for null byte
-	    argsSize += 4 + argv[i].length + 1;
-	}
-	if (argsSize > pageSize) {
-	    coff.close();
-	    Lib.debug(dbgProcess, "\targuments too long");
-	    return false;
-	}
+    	// make sure the sections are contiguous and start at page 0
+    	numPages = 0;
+    	for (int s=0; s<coff.getNumSections(); s++) {
+    		CoffSection section = coff.getSection(s);
+    		if (section.getFirstVPN() != numPages) {
+    			coff.close();
+    			Lib.debug(dbgProcess, "\tfragmented executable");
+    			return false;
+    		}
+    		numPages += section.getLength();
+    	}
 
-	// program counter initially points at the program entry point
-	initialPC = coff.getEntryPoint();	
+    	// make sure the argv array will fit in one page
+    	byte[][] argv = new byte[args.length][];
+    	int argsSize = 0;
+    	for (int i=0; i<args.length; i++) {
+    		argv[i] = args[i].getBytes();
+    		// 4 bytes for argv[] pointer; then string plus one for null byte
+    		argsSize += 4 + argv[i].length + 1;
+    	}
+    	if (argsSize > pageSize) {
+    		coff.close();
+    		Lib.debug(dbgProcess, "\targuments too long");
+    		return false;
+    	}
 
-	// next comes the stack; stack pointer initially points to top of it
-	numPages += stackPages;
-	initialSP = numPages*pageSize;
+    	// program counter initially points at the program entry point
+    	initialPC = coff.getEntryPoint();	
 
-	// and finally reserve 1 page for arguments
-	numPages++;
-	//System.out.println("in load numPages="+numPages);
-	if (!loadSections())
-	    return false;
+    	// next comes the stack; stack pointer initially points to top of it
+    	numPages += stackPages;
+    	initialSP = numPages*pageSize;
 
-	// store arguments in last page
-	int entryOffset = (numPages-1)*pageSize;
-	int stringOffset = entryOffset + args.length*4;
+    	// and finally reserve 1 page for arguments
+    	numPages++;
+    	//System.out.println("in load numPages="+numPages);
+    	if (!loadSections())
+    		return false;
 
-	this.argc = args.length;
-	this.argv = entryOffset;
-	
-	for (int i=0; i<argv.length; i++) {
-	    byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-	    Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
-	    entryOffset += 4;
-	    Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
-		       argv[i].length);
-	    stringOffset += argv[i].length;
-	    Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
-	    stringOffset += 1;
-	}
+    	// store arguments in last page
+    	int entryOffset = (numPages-1)*pageSize;
+    	int stringOffset = entryOffset + args.length*4;
 
-	return true;
+    	this.argc = args.length;
+    	this.argv = entryOffset;
+
+    	for (int i=0; i<argv.length; i++) {
+    		byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+    		Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
+    		entryOffset += 4;
+    		Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
+    				argv[i].length);
+    		stringOffset += argv[i].length;
+    		Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
+    		stringOffset += 1;
+    	}
+
+    	return true;
     }
 
     /**
@@ -389,51 +390,51 @@ public class UserProcess {
      * @return	<tt>true</tt> if the sections were successfully loaded.
      */
     protected boolean loadSections() {
-	if (numPages > Machine.processor().getNumPhysPages()) {
-	    coff.close();
-	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
-	    return false;
-	}
-	pageTable=new TranslationEntry[numPages];
-	//System.out.println("nr_page="+numPages+" pageSize="+pageSize);
-	// load sections
-	int k=0;
-	for (int s=0; s<coff.getNumSections(); s++) {
-	    CoffSection section = coff.getSection(s);
-	    
-	    Lib.debug(dbgProcess, "\tinitializing " + section.getName()
-		      + " section (" + section.getLength() + " pages)");
+    	if (numPages > Machine.processor().getNumPhysPages()) {
+    		coff.close();
+    		Lib.debug(dbgProcess, "\tinsufficient physical memory");
+    		return false;
+    	}
+    	pageTable=new TranslationEntry[numPages];
+    	//System.out.println("nr_page="+numPages+" pageSize="+pageSize);
+    	// load sections
+    	int k=0;
+    	for (int s=0; s<coff.getNumSections(); s++) {
+    		CoffSection section = coff.getSection(s);
 
-	    for (int i=0; i<section.getLength(); i++) {
-			int vpn = section.getFirstVPN()+i;
-			// for now, just assume virtual addresses=physical addresses
-			
-			//section.loadPage(i, vpn);
-			//get new physical page
-			Integer ppn=getNewPhysicalPage();
-			//System.out.println("get ppn "+ppn.intValue());
-			if(ppn==null){
-				System.out.println("physical page fail");
-			}
-			pageTable[k]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
-			k+=1;
-			section.loadPage(i,ppn.intValue());
-	    }
-	}
-	//load stack and argument
-	for(int i=0;i<stackPages+1;i++){
-		int vpn=numPages-stackPages-1+i;
-		Lib.debug(dbgProcess, "\tinitializing stack/argument with vpn "+vpn);
-		Integer ppn=getNewPhysicalPage();
-		//System.out.println("get ppn "+ppn.intValue());
-		if(ppn==null){
-			System.out.println("physical page fail");
-		}
-		pageTable[k]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
-		k+=1;
-	}
-	Lib.assertTrue(k==numPages);
-	return true;
+    		Lib.debug(dbgProcess, "\tinitializing " + section.getName()
+    		+ " section (" + section.getLength() + " pages)");
+
+    		for (int i=0; i<section.getLength(); i++) {
+    			int vpn = section.getFirstVPN()+i;
+    			// for now, just assume virtual addresses=physical addresses
+
+    			//section.loadPage(i, vpn);
+    			//get new physical page
+    			Integer ppn=getNewPhysicalPage();
+    			//System.out.println("get ppn "+ppn.intValue());
+    			if(ppn==null){
+    				System.out.println("physical page fail");
+    			}
+    			pageTable[k]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
+    			k+=1;
+    			section.loadPage(i,ppn.intValue());
+    		}
+    	}
+    	//load stack and argument
+    	for(int i=0;i<stackPages+1;i++){
+    		int vpn=numPages-stackPages-1+i;
+    		Lib.debug(dbgProcess, "\tinitializing stack/argument with vpn "+vpn);
+    		Integer ppn=getNewPhysicalPage();
+    		//System.out.println("get ppn "+ppn.intValue());
+    		if(ppn==null){
+    			System.out.println("physical page fail");
+    		}
+    		pageTable[k]=new TranslationEntry(vpn,ppn.intValue(), true,false,false,false);
+    		k+=1;
+    	}
+    	Lib.assertTrue(k==numPages);
+    	return true;
     }
 
     /**
@@ -454,101 +455,117 @@ public class UserProcess {
      * and initialize all other registers to 0.
      */
     public void initRegisters() {
-	Processor processor = Machine.processor();
+    	Processor processor = Machine.processor();
 
-	// by default, everything's 0
-	for (int i=0; i<processor.numUserRegisters; i++)
-	    processor.writeRegister(i, 0);
+    	// by default, everything's 0
+    	for (int i=0; i<processor.numUserRegisters; i++)
+    		processor.writeRegister(i, 0);
 
-	// initialize PC and SP according
-	processor.writeRegister(Processor.regPC, initialPC);
-	processor.writeRegister(Processor.regSP, initialSP);
+    	// initialize PC and SP according
+    	processor.writeRegister(Processor.regPC, initialPC);
+    	processor.writeRegister(Processor.regSP, initialSP);
 
-	// initialize the first two argument registers to argc and argv
-	processor.writeRegister(Processor.regA0, argc);
-	processor.writeRegister(Processor.regA1, argv);
+    	// initialize the first two argument registers to argc and argv
+    	processor.writeRegister(Processor.regA0, argc);
+    	processor.writeRegister(Processor.regA1, argv);
     }
 
     /**
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-	if(processID!=0){
-		return 0;
-	}
-	Machine.halt();
+    	if(processID != 0){
+    		return 0;
+    	}
+    	Machine.halt();
 	
-	Lib.assertNotReached("Machine.halt() did not halt machine!");
-	return 0;
+    	Lib.assertNotReached("Machine.halt() did not halt machine!");
+    	return 0;
     }
 
-	private int handleCreateOpen(int a0,boolean isCreate) {
-		String name=readVirtualMemoryString(a0,maxBufferSize);
-		if(name==null){
+    /**
+     * Handle creat() & open() system call
+     * int creat(char *name);
+     * int open(char *name);
+     * */
+	private int handleCreateOpen(int a0, boolean isCreate) {
+		String name = readVirtualMemoryString(a0, maxBufferSize);
+		//System.out.println("name = " + name);
+		if(name == null){
 			System.out.println("[create/open]read name fail");
 			return -1;
 		}
-		//System.out.println("name="+name);
-		int ret=-1;
-		for(int i=0;i<maxFile;i++){
-			if(fileTable[i]==null){
-				ret=i;
-				break;
-			}
-		}
-		if(ret==-1){
-			System.out.println("[create/open]fileTable full");
+		int fileDes;
+		OpenFile file;
+		if((fileDes = fileSystemUtils.getFileDes()) == -1){
+    		System.out.println("[create/open]file table full");
 			return -1;
 		}
-		OpenFile file=ThreadedKernel.fileSystem.open(name,isCreate);
-		if(file==null){
-			System.out.println("[create/open] open fail");
+		if((file = ThreadedKernel.fileSystem.open(name, isCreate)) == null){
+			System.out.println("[create/open]open fail");
 			return -1;
 		}
-		fileTable[ret]=file;
-		return ret;
+		fileTable[fileDes] = file;
+		return fileDes;
 	}
-
-	private int handleRead(int a0,int a1, int a2){
-		if(a0<0 || a0>=maxFile || fileTable[a0]==null){
+	
+    /**
+     * Handle read() system call
+     * int read(int fd, char *buffer, int size);
+     * */
+	private int handleRead(int a0, int a1, int a2){
+		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[read]invalid file id");
 			return -1;
 		}
-		if(a2<1){
+		if(!fileSystemUtils.validBufferSize(a2)){
 			System.out.println("[read]invalid count");
 			return -1;
 		}
-		OpenFileWithPosition file=(OpenFileWithPosition)fileTable[a0];
-		byte[] buffer=new byte[a2];
-		int read_res=file.read(buffer,0,a2);
-		if(read_res<0){
+		//not sure whether need typecast. stdin & stdout ?
+		//OpenFileWithPosition file = (OpenFileWithPosition)fileTable[a0];
+		byte[] buffer = new byte[a2];
+		//int read_res = file.read(buffer, 0, a2);
+		int read_res = fileTable[a0].read(buffer, 0, a2);
+		if(read_res < 0){
+			System.out.println("[read]error reading file");
 			return -1;
 		}
-		int write_res=writeVirtualMemory(a1,buffer,0,read_res);
-		if(write_res!=read_res){
+		int write_res = writeVirtualMemory(a1, buffer, 0, read_res);
+		if(write_res != read_res){
 			System.out.println("[read]error writing memory");
 			return -1;
 		}
 		return read_res;
 	}
-	
-	private int handleWrite(int a0,int a1, int a2){
-		if(a0<0 || a0>=maxFile || fileTable[a0]==null){
+	/**
+     * Handle write() system call
+     * int write(int fd, char *buffer, int size);
+     * */
+	private int handleWrite(int a0, int a1, int a2){
+		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[write]invalid file id");
 			return -1;
 		}
-		if(a2<1){
+		if(!fileSystemUtils.validBufferSize(a2)){
 			System.out.println("[write]invalid count");
 			return -1;
 		}
-		OpenFile file=fileTable[a0];
-		byte[] buffer=new byte[a2];
-		int read_res=readVirtualMemory(a1,buffer);
-		if(read_res!=a2){
+		//OpenFile file = fileTable[a0];
+		byte[] buffer = new byte[a2];
+		int read_res = readVirtualMemory(a1, buffer);
+		if(read_res != a2){
 			System.out.println("[write]error reading memory");
 			return -1;
 		}
-		int write_res=file.write(buffer,0,a2);
+		
+		int write_res = fileTable[a0].write(buffer, 0, a2);
+		//need check whether it is correct
+		if(write_res != read_res){
+			System.out.println("[write]error writing file");
+			return -1;
+		}
+		//int write_res = file.write(buffer,0,a2);
 		return write_res;
 	}
 	
@@ -656,17 +673,16 @@ public class UserProcess {
 		return 0;
 	}
 	
-    private static final int
-        syscallHalt = 0,
-	syscallExit = 1,
-	syscallExec = 2,
-	syscallJoin = 3,
-	syscallCreate = 4,
-	syscallOpen = 5,
-	syscallRead = 6,
-	syscallWrite = 7,
-	syscallClose = 8,
-	syscallUnlink = 9;
+    private static final int syscallHalt = 0;
+    private static final int syscallExit = 1;
+    private static final int syscallExec = 2;
+    private static final int syscallJoin = 3;
+    private static final int syscallCreate = 4;
+    private static final int syscallOpen = 5;
+    private static final int syscallRead = 6;
+    private static final int syscallWrite = 7;
+    private static final int syscallClose = 8;
+    private static final int syscallUnlink = 9;
 
     /**
      * Handle a syscall exception. Called by <tt>handleException()</tt>. The
@@ -698,33 +714,33 @@ public class UserProcess {
      */
     public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
     	//System.out.println("system call "+syscall);
-	switch (syscall) {
-	case syscallHalt:
-	    return handleHalt();
-	//EDIT HERE
-	case syscallCreate:
-		return handleCreateOpen(a0,true);
-	case syscallOpen:
-		return handleCreateOpen(a0,false);
-	case syscallRead:
-		return handleRead(a0,a1,a2);
-	case syscallWrite:
-		return handleWrite(a0,a1,a2);
-	case syscallClose:
-		return handleClose(a0);
-	case syscallUnlink:
-		return handleUnlink(a0);
-	case syscallExec:
-		return handleExec(a0,a1,a2);
-	case syscallJoin:
-		return handleJoin(a0,a1);
-	case syscallExit:
-		return handleExit(a0);
-	default:
-	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
-	    Lib.assertNotReached("Unknown system call!");
-	}
-	return 0;
+    	switch (syscall) {
+    	case syscallHalt:
+    		return handleHalt();
+    		//EDIT HERE
+    	case syscallCreate:
+    		return handleCreateOpen(a0, true);
+    	case syscallOpen:
+    		return handleCreateOpen(a0, false);
+    	case syscallRead:
+    		return handleRead(a0, a1, a2);
+    	case syscallWrite:
+    		return handleWrite(a0, a1, a2);
+    	case syscallClose:
+    		return handleClose(a0);
+    	case syscallUnlink:
+    		return handleUnlink(a0);
+    	case syscallExec:
+    		return handleExec(a0, a1, a2);
+    	case syscallJoin:
+    		return handleJoin(a0, a1);
+    	case syscallExit:
+    		return handleExit(a0);
+    	default:
+    		Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+    		Lib.assertNotReached("Unknown system call!");
+    	}
+    	return 0;
     }
 
     /**
@@ -736,28 +752,56 @@ public class UserProcess {
      * @param	cause	the user exception that occurred.
      */
     public void handleException(int cause) {
-	Processor processor = Machine.processor();
+    	Processor processor = Machine.processor();
 
-	switch (cause) {
-	case Processor.exceptionSyscall:
-	    int result = handleSyscall(processor.readRegister(Processor.regV0),
-				       processor.readRegister(Processor.regA0),
-				       processor.readRegister(Processor.regA1),
-				       processor.readRegister(Processor.regA2),
-				       processor.readRegister(Processor.regA3)
-				       );
-	    processor.writeRegister(Processor.regV0, result);
-	    processor.advancePC();
-	    break;				       
-				       
-	default:
-	    Lib.debug(dbgProcess, "Unexpected exception: " +
-		      Processor.exceptionNames[cause]);
-	    Lib.assertNotReached("Unexpected exception");
-	}
+    	switch (cause) {
+    	case Processor.exceptionSyscall:
+    		int result = handleSyscall(processor.readRegister(Processor.regV0),
+    				processor.readRegister(Processor.regA0),
+    				processor.readRegister(Processor.regA1),
+    				processor.readRegister(Processor.regA2),
+    				processor.readRegister(Processor.regA3)
+    				);
+    		processor.writeRegister(Processor.regV0, result);
+    		processor.advancePC();
+    		break;				       
+
+    	default:
+    		Lib.debug(dbgProcess, "Unexpected exception: " +
+    				Processor.exceptionNames[cause]);
+    		Lib.assertNotReached("Unexpected exception");
+    	}
     }
 
-
+    protected class FileSystemUtils{
+    	/*private UserProcess master;
+    	protected FileSystemUtils(UserProcess process){
+    		master = process;
+    	}*/
+    	
+    	int getFileDes(){
+    		for(int i = 0; i < maxFile; i++){
+    			if(fileTable[i] == null){
+    				return i;
+    			}
+    		}
+    		return -1;
+    	}
+    	
+    	boolean validDes(int des){
+    		if(des < 0 || des >= maxFile || fileTable[des] == null){
+    			return false;
+    		} else
+    			return true;
+    	}
+    	boolean validBufferSize(int count){
+    		if(count < 1){
+    			return false;
+    		} else
+    			return true;
+    	}
+    }
+    
 	private static synchronized int getProcessID(){
 		int ret=nextProcessID;
 		nextProcessID+=1;
@@ -819,4 +863,6 @@ public class UserProcess {
     private static int aliveProcessNumber=0;
     private static final int physicalPageSize=Machine.processor().getNumPhysPages();
     private static boolean[] physicalPageStatus=new boolean[physicalPageSize];
+    
+    private FileSystemUtils fileSystemUtils;
 }
