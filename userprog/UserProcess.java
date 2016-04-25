@@ -684,8 +684,8 @@ public class UserProcess {
 		}else{
 			// means it fails;
 			// maybe following two lines can be omited
-			int ret = -1;
-			writeVirtualMemoryInt(a1, ret);
+			//int ret = -1;
+			//writeVirtualMemoryInt(a1, ret);
 			return 0;
 		}
 		
@@ -702,10 +702,10 @@ public class UserProcess {
 		unloadSections();//cleanup memory
 		if(parent != null){
 			Lib.assertTrue(!parent.childExits.containsKey(processID));
-			parent.childExits.put(processID,a0);
+			parent.childExits.put(processID, a0);
 		}
 		for(Map.Entry<Integer, UserProcess> entry : childs.entrySet()){
-			assert(entry.getValue().parent == this);
+			Lib.assertTrue(entry.getValue().parent == this);
 			entry.getValue().parent = null;
 		}
 		//System.out.println("finish thread");
