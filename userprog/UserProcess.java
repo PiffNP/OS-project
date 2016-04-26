@@ -700,9 +700,9 @@ public class UserProcess {
 			Lib.assertTrue(!parent.childExits.containsKey(processID));
 			parent.childExits.put(processID, a0);
 		}
-		for(Map.Entry<Integer, UserProcess> entry : childs.entrySet()){
-			Lib.assertTrue(entry.getValue().parent == this);
-			entry.getValue().parent = null;
+		for(UserProcess child : childs.values()){
+			Lib.assertTrue(child.parent == this);
+			child.parent = null;
 		}
 		ProcessIdentity.decreaseAliveProcessNumber();
 		if(ProcessIdentity.noAliveProcess()){
@@ -863,14 +863,9 @@ public class UserProcess {
     	}
     	
     	void cleanFileTable(){
-    		for(int i = 0; i < maxFile; i++){
-    			OpenFile file = fileTable[i];
-    			if(file != null){
-    				String name = file.getName();
-    				file.close();
-    				removeFileRef(name);
-    			}
-    		}
+    		for(int i = 0; i < maxFile; i++)
+    			if(fileTable[i] != null)
+    				handleClose(i);
     	}
     	
     	boolean validVirtualAddress(int addr) {
