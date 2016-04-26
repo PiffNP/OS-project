@@ -119,14 +119,14 @@ public class UserProcess {
 
 	public Integer readVirtualMemoryInt(int vaddr) {
 		byte[] bytes = new byte[4];
-		int bytesRead =readVirtualMemory(vaddr,bytes);
+		int bytesRead = readVirtualMemory(vaddr, bytes);
 		if(bytesRead != 4) return null;
 		return new Integer(Lib.bytesToInt(bytes,0));
 	}
 	
-	public boolean writeVirtualMemoryInt(int vaddr,int value) {
+	public boolean writeVirtualMemoryInt(int vaddr, int value) {
 		byte[] bytes = Lib.bytesFromInt(value);
-		int bytesWrite = writeVirtualMemory(vaddr,bytes);
+		int bytesWrite = writeVirtualMemory(vaddr, bytes);
 		if(bytesWrite != 4) return false;
 		return true;
 	}
@@ -674,50 +674,27 @@ public class UserProcess {
 			System.out.println("[join]no such child");
 			return -1;
 		}
-		if(childExits.containsKey(a0)){
-			childs.remove(a0);
-			if(childExits.get(a0) != null){
-				//normally exit
-				int ret = childExits.get(a0);
-				childExits.remove(a0);
-				writeVirtualMemoryInt(a1, ret);
-				return 1;
-			}else{
-				// means it fails;
-				// maybe following two lines can be omited
-				//int ret = -1;
-				//writeVirtualMemoryInt(a1, ret);
-				return 0;
-			}
+		if(!childExits.containsKey(a0)){
+			childs.get(a0).thread.join();
 		}
-		UserProcess child = childs.get(a0);
-		child.thread.join();
-		childs.remove(a0);
 		Lib.assertTrue(childExits.containsKey(a0));
+		childs.remove(a0);
+		int ret = 0;
 		if(childExits.get(a0) != null){
 			//normally exit
-			int ret = childExits.get(a0);
-			childExits.remove(a0);
-			writeVirtualMemoryInt(a1, ret);
-			return 1;
-		}else{
-			// means it fails;
-			// maybe following two lines can be omited
-			//int ret = -1;
-			//writeVirtualMemoryInt(a1, ret);
-			return 0;
+			writeVirtualMemoryInt(a1, childExits.get(a0).intValue());
+			ret = 1;
 		}
-		
+		childExits.remove(a0);
+		return ret;
 	}
 	
 	/**
      * Handle exit() system call
      * void exit(int status);
      * */
-	private int handleExit(int a0){
-		//System.out.println("begin exit");
+	private int handleExit(Integer a0){
 		fileSystemUtils.cleanFileTable();
-		//System.out.println("unloadSections");
 		unloadSections();//cleanup memory
 		if(parent != null){
 			Lib.assertTrue(!parent.childExits.containsKey(processID));
@@ -727,9 +704,7 @@ public class UserProcess {
 			Lib.assertTrue(entry.getValue().parent == this);
 			entry.getValue().parent = null;
 		}
-		//System.out.println("finish thread");
 		ProcessIdentity.decreaseAliveProcessNumber();
-		//System.out.println("alive process="+aliveProcessNumber);
 		if(ProcessIdentity.noAliveProcess()){
 			Kernel.kernel.terminate();
 		}else{
@@ -835,22 +810,7 @@ public class UserProcess {
     		Lib.debug(dbgProcess, "Unexpected exception: " +
     				Processor.exceptionNames[cause]);
 
-    		fileSystemUtils.cleanFileTable();
-    		unloadSections();//cleanup memory
-    		if(parent != null){
-    			Lib.assertTrue(!parent.childExits.containsKey(processID));
-    			parent.childExits.put(processID, null);
-    		}
-    		for(Map.Entry<Integer, UserProcess> entry : childs.entrySet()){
-    			assert(entry.getValue().parent == this);
-    			entry.getValue().parent = null;
-    		}
-    		ProcessIdentity.decreaseAliveProcessNumber();
-    		if(ProcessIdentity.noAliveProcess()){
-    			Kernel.kernel.terminate();
-    		}else{
-    			KThread.finish();
-    		}
+    		handleExit(null);
     		
     		Lib.assertNotReached("Unexpected exception");
     	}
