@@ -263,7 +263,7 @@ public class UserProcess {
 			int vpo = Processor.offsetFromAddress(currentVaddr);
 			if(vpn != lastVPN){//switch physical page
 				entry = translate(vpn);
-				if(entry == null){
+				if(entry == null || entry.readOnly){
 					//we cannot find such page
 					return amount;
 				}
