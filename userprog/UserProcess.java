@@ -397,9 +397,6 @@ public class UserProcess {
     	for (int s = 0; s < coff.getNumSections(); s++) {
     		CoffSection section = coff.getSection(s);
 
-    		Lib.debug(dbgProcess, "\tinitializing " + section.getName()
-    		+ " section (" + section.getLength() + " pages)");
-
     		for (int i = 0; i < section.getLength(); i++) {
     			int vpn = section.getFirstVPN() + i;
     			//get new physical page
@@ -417,7 +414,6 @@ public class UserProcess {
     	//load stack and argument
     	for(int i = 0; i < stackPages + 1; i++){
     		int vpn = numPages - stackPages - 1 + i;
-    		Lib.debug(dbgProcess, "\tinitializing stack/argument with vpn " + vpn);
     		Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
     		//System.out.println("get ppn "+ppn.intValue());
     		if(ppn == null){
@@ -656,11 +652,12 @@ public class UserProcess {
 		}
 		UserProcess process = UserProcess.newUserProcess();
 		process.parent = this;
-		this.childs.put(process.processID, process);
 		boolean result = process.execute(name, args);
 		if(result == true){
+			this.childs.put(process.processID, process);
 			return process.processID;
 		} else {
+			ProcessIdentity.decreaseAliveProcessNumber();
 			return -1;
 		}
 	}
