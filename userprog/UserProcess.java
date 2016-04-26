@@ -658,6 +658,8 @@ public class UserProcess {
 			return process.processID;
 		} else {
 			ProcessIdentity.decreaseAliveProcessNumber();
+	    	fileSystemUtils.removeFileRef(UserKernel.console.openForReading().getName());
+	    	fileSystemUtils.removeFileRef(UserKernel.console.openForWriting().getName());
 			return -1;
 		}
 	}
