@@ -33,7 +33,9 @@ public class UserProcess {
     	// add stdin and stdout to file table
     	fileTable = new OpenFile[maxFile];//by requirement at most 16 file
     	fileTable[0] = UserKernel.console.openForReading();
+    	fileSystemUtils.addFileRef(fileTable[0]);
     	fileTable[1] = UserKernel.console.openForWriting();
+    	fileSystemUtils.addFileRef(fileTable[1]);
     	//assign process ID
     	processID = ProcessIdentity.getProcessID();
     	childs = new HashMap<Integer, UserProcess>();
@@ -361,7 +363,7 @@ public class UserProcess {
     	this.argc = args.length;
     	this.argv = entryOffset;
 
-    	for (int i=0; i<argv.length; i++) {
+    	for (int i = 0; i < argv.length; i++) {
     		byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
     		Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
     		entryOffset += 4;
@@ -398,8 +400,8 @@ public class UserProcess {
     		Lib.debug(dbgProcess, "\tinitializing " + section.getName()
     		+ " section (" + section.getLength() + " pages)");
 
-    		for (int i=0; i<section.getLength(); i++) {
-    			int vpn = section.getFirstVPN()+i;
+    		for (int i = 0; i < section.getLength(); i++) {
+    			int vpn = section.getFirstVPN() + i;
     			//get new physical page
     			Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
     			//System.out.println("get ppn "+ppn.intValue());
@@ -415,7 +417,7 @@ public class UserProcess {
     	//load stack and argument
     	for(int i = 0; i < stackPages + 1; i++){
     		int vpn = numPages - stackPages - 1 + i;
-    		Lib.debug(dbgProcess, "\tinitializing stack/argument with vpn "+vpn);
+    		Lib.debug(dbgProcess, "\tinitializing stack/argument with vpn " + vpn);
     		Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
     		//System.out.println("get ppn "+ppn.intValue());
     		if(ppn == null){
@@ -433,7 +435,7 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-    	for(int i=0;i<numPages;i++){
+    	for(int i = 0; i < numPages; i++){
     		TranslationEntry entry = pageTable[i];
     		PhysicalMemoryUtils.ReleasePhysicalPage(entry.ppn);
     	}
@@ -904,7 +906,9 @@ public class UserProcess {
     		for(int i = 0; i < maxFile; i++){
     			OpenFile file = fileTable[i];
     			if(file != null){
+    				String name = file.getName();
     				file.close();
+    				removeFileRef(name);
     			}
     		}
     	}
