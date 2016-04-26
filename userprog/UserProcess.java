@@ -33,9 +33,9 @@ public class UserProcess {
     	// add stdin and stdout to file table
     	fileTable = new OpenFile[maxFile];//by requirement at most 16 file
     	fileTable[0] = UserKernel.console.openForReading();
-    	fileSystemUtils.addFileRef(fileTable[0]);
+    	fileSystemUtils.addFileRef(fileTable[0].getName());
     	fileTable[1] = UserKernel.console.openForWriting();
-    	fileSystemUtils.addFileRef(fileTable[1]);
+    	fileSystemUtils.addFileRef(fileTable[1].getName());
     	//assign process ID
     	processID = ProcessIdentity.getProcessID();
     	childs = new HashMap<Integer, UserProcess>();
