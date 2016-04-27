@@ -161,6 +161,7 @@ public class UserProcess {
 	 public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
+		Lib.assertTrue(!(KThread.currentThread() != this.thread && this.thread != null));
 		if(KThread.currentThread() != this.thread && this.thread != null)
 			return 0;
 		if(!fileSystemUtils.validVirtualAddress(vaddr))
@@ -254,6 +255,7 @@ public class UserProcess {
     */
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+		Lib.assertTrue(!(KThread.currentThread() != this.thread && this.thread != null));
 		if(KThread.currentThread() != this.thread && this.thread != null)
 			return 0;
 		if(!fileSystemUtils.validVirtualAddress(vaddr))
@@ -772,6 +774,7 @@ public class UserProcess {
      */
     public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
     	//System.out.println("system call "+syscall);
+    	Lib.assertTrue(KThread.currentThread() == this.thread);
     	switch (syscall) {
     	case syscallHalt:
     		return handleHalt();
