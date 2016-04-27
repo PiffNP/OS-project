@@ -161,7 +161,7 @@ public class UserProcess {
 	 public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
-		Lib.assertTrue(!(KThread.currentThread() != this.thread && this.thread != null));
+		//Lib.assertTrue(!(KThread.currentThread() != this.thread && this.thread != null));
 		if(KThread.currentThread() != this.thread && this.thread != null)
 			return 0;
 		if(!fileSystemUtils.validVirtualAddress(vaddr))
@@ -255,7 +255,7 @@ public class UserProcess {
     */
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-		Lib.assertTrue(!(KThread.currentThread() != this.thread && this.thread != null));
+		//Lib.assertTrue(!(KThread.currentThread() != this.thread && this.thread != null));
 		if(KThread.currentThread() != this.thread && this.thread != null)
 			return 0;
 		if(!fileSystemUtils.validVirtualAddress(vaddr))
@@ -418,6 +418,7 @@ public class UserProcess {
     			Integer ppn = physicalPage[k];
     			//System.out.println("get ppn "+ppn.intValue());
     			if(ppn == null){
+    	    		coff.close();
     				System.out.println("physical page fail");
     				return false;
     			}
@@ -432,6 +433,7 @@ public class UserProcess {
     		Integer ppn = physicalPage[k];
     		//System.out.println("get ppn "+ppn.intValue());
     		if(ppn == null){
+        		coff.close();
     			System.out.println("physical page fail");
     			return false;
     		}
@@ -715,6 +717,7 @@ public class UserProcess {
 	private int handleExit(Integer a0){
 		fileSystemUtils.cleanFileTable();
 		unloadSections();//cleanup memory
+		coff.close();
 		if(parent != null){
 			Lib.assertTrue(!parent.childExits.containsKey(processID));
 			parent.childExits.put(processID, a0);
@@ -774,7 +777,7 @@ public class UserProcess {
      */
     public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
     	//System.out.println("system call "+syscall);
-    	Lib.assertTrue(KThread.currentThread() == this.thread);
+    	//Lib.assertTrue(KThread.currentThread() == this.thread);
     	switch (syscall) {
     	case syscallHalt:
     		return handleHalt();
