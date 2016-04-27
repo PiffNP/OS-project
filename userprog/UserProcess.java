@@ -109,7 +109,7 @@ public class UserProcess {
 
     	int bytesRead = readVirtualMemory(vaddr, bytes);
 
-    	for (int length=0; length<bytesRead; length++) {
+    	for (int length = 0; length < bytesRead; length++) {
     		if (bytes[length] == 0)
     			return new String(bytes, 0, length);
     	}
@@ -385,22 +385,28 @@ public class UserProcess {
      * @return	<tt>true</tt> if the sections were successfully loaded.
      */
     protected boolean loadSections() {
-    	/*if (numPages > Machine.processor().getNumPhysPages()) {
+    	if (numPages > Machine.processor().getNumPhysPages()) {
     		coff.close();
     		Lib.debug(dbgProcess, "\tinsufficient physical memory");
     		return false;
-    	}*/
+    	}
+    	int k = 0;
+    	Integer[] physicalPage = PhysicalMemoryUtils.getNewPhysicalPage(numPages);
+    	if (physicalPage == null) {
+    		coff.close();
+    		Lib.debug(dbgProcess, "\tinsufficient physical memory");
+    		return false;
+    	}
     	pageTable = new TranslationEntry[numPages];
     	//System.out.println("nr_page="+numPages+" pageSize="+pageSize);
     	// load sections
-    	int k = 0;
     	for (int s = 0; s < coff.getNumSections(); s++) {
     		CoffSection section = coff.getSection(s);
 
     		for (int i = 0; i < section.getLength(); i++) {
     			int vpn = section.getFirstVPN() + i;
     			//get new physical page
-    			Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
+    			Integer ppn = physicalPage[k];
     			//System.out.println("get ppn "+ppn.intValue());
     			if(ppn == null){
     				System.out.println("physical page fail");
@@ -414,7 +420,7 @@ public class UserProcess {
     	//load stack and argument
     	for(int i = 0; i < stackPages + 1; i++){
     		int vpn = numPages - stackPages - 1 + i;
-    		Integer ppn = PhysicalMemoryUtils.getNewPhysicalPage();
+    		Integer ppn = physicalPage[k];
     		//System.out.println("get ppn "+ppn.intValue());
     		if(ppn == null){
     			System.out.println("physical page fail");
@@ -431,10 +437,11 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+		Integer[] entryPPN = new Integer[numPages];
     	for(int i = 0; i < numPages; i++){
-    		TranslationEntry entry = pageTable[i];
-    		PhysicalMemoryUtils.ReleasePhysicalPage(entry.ppn);
+    		entryPPN[i] = pageTable[i].ppn;
     	}
+		PhysicalMemoryUtils.ReleasePhysicalPage(entryPPN);
     }    
 
     /**
@@ -958,13 +965,33 @@ public class UserProcess {
     		PMLock.release();
     		return ret;
     	}
+    	private static Integer[] getNewPhysicalPage(int num){
+    		PMLock.acquire();
+    		Integer[] ret = null;
+    		if(physicalPageStatus.size() >= num){
+    			ret = new Integer[num];
+    			for(int i = 0; i < num; i++)
+    				ret[i] = physicalPageStatus.poll();
+    		}
+    		PMLock.release();
+    		return ret;
+    	}
     	private static void ReleasePhysicalPage(int ppn){
     		PMLock.acquire();
     		Lib.assertTrue(0 <= ppn && ppn < physicalPageSize);
     		Lib.assertTrue(!physicalPageStatus.contains(ppn));
     		physicalPageStatus.add(new Integer(ppn));
     		PMLock.release();
-    	}    	
+    	}
+    	private static void ReleasePhysicalPage(Integer[] ppn){
+    		PMLock.acquire();
+    		for(int i = 0; i < ppn.length; i++){
+    			Lib.assertTrue(0 <= ppn[i] && ppn[i] < physicalPageSize);
+    			Lib.assertTrue(!physicalPageStatus.contains(ppn[i]));
+    			physicalPageStatus.add(new Integer(ppn[i]));
+    		}
+    		PMLock.release();
+    	}
     }
     
 	
