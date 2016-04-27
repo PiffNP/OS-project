@@ -161,13 +161,16 @@ public class UserProcess {
 	 public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		//System.out.println("read vm vaddr="+vaddr+" offset="+offset+" length="+length);
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
-	
+		if(KThread.currentThread() != this.thread && this.thread != null)
+			return 0;
+		if(!fileSystemUtils.validVirtualAddress(vaddr))
+			return 0;
 		byte[] memory = Machine.processor().getMemory();
 		
 		int lastVPN = -1;
 		TranslationEntry entry = null;
 		int amount = 0;
-		for(int i = 0; i < length;i++){
+		for(int i = 0; i < length; i++){
 			int currentVaddr = vaddr + i;
 			int vpn = Processor.pageFromAddress(currentVaddr);
 			int vpo = Processor.offsetFromAddress(currentVaddr);
@@ -251,6 +254,10 @@ public class UserProcess {
     */
 	public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
 		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+		if(KThread.currentThread() != this.thread && this.thread != null)
+			return 0;
+		if(!fileSystemUtils.validVirtualAddress(vaddr))
+			return 0;
 	
 		byte[] memory = Machine.processor().getMemory();
 		
