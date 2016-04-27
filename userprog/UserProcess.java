@@ -488,7 +488,7 @@ public class UserProcess {
 	private int handleCreateOpen(int a0, boolean isCreate) {
 		if(!fileSystemUtils.validVirtualAddress(a0)){
     		System.out.println("[create/open]invalid address");
-			return handleExit(null);
+			return -1;
 		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
 		//System.out.println("name = " + name);
@@ -523,7 +523,7 @@ public class UserProcess {
 	private int handleRead(int a0, int a1, int a2){
 		if(!fileSystemUtils.validVirtualAddress(a1)){
     		System.out.println("[read]invalid address");
-			return handleExit(null);
+			return -1;
 		}
 		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[read]invalid file id");
@@ -560,7 +560,7 @@ public class UserProcess {
 	private int handleWrite(int a0, int a1, int a2){
 		if(!fileSystemUtils.validVirtualAddress(a1)){
     		System.out.println("[write]invalid address");
-			return handleExit(null);
+			return -1;
 		}
 		if(!fileSystemUtils.validDes(a0)){
 			System.out.println("[write]invalid file id");
@@ -615,7 +615,7 @@ public class UserProcess {
 	private int handleUnlink(int a0){
 		if(!fileSystemUtils.validVirtualAddress(a0)){
     		System.out.println("[unlink]invalid address");
-			return handleExit(null);
+			return -1;
 		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
 		if(name == null){
@@ -632,7 +632,7 @@ public class UserProcess {
 	private int handleExec(int a0, int a1, int a2){
 		if(!fileSystemUtils.validVirtualAddress(a0)){
     		System.out.println("[exec]invalid address");
-			return handleExit(null);
+			return -1;
 		}
 		String name = readVirtualMemoryString(a0, maxBufferSize);
 		if(name == null || !name.endsWith(".coff")){
@@ -647,7 +647,7 @@ public class UserProcess {
 		for(int i = 0; i < a1; i++){
 			if(!fileSystemUtils.validVirtualAddress(a2 + 4 * i)){
 	    		System.out.println("[exec]invalid address");
-				return handleExit(null);
+				return -1;
 			}
 			Integer arg_adr = readVirtualMemoryInt(a2 + 4 * i);
 			if(arg_adr == null){
@@ -656,7 +656,7 @@ public class UserProcess {
 			}
 			if(!fileSystemUtils.validVirtualAddress(arg_adr.intValue())){
 	    		System.out.println("[exec]invalid address");
-				return handleExit(null);
+				return -1;
 			}
 			String arg = readVirtualMemoryString(arg_adr.intValue(), maxBufferSize);
 			args[i] = arg;
